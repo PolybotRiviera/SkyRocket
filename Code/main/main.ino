@@ -18,6 +18,8 @@ _\ \   <| |_| / _  \ (_) | (__|   <  __/ |_
 #include "include/Magnetometer.hpp"
 #include "USB.h"
 
+#include <unordered_map>
+
 USBCDC USBSerial;
 Mecanum mecanum;
 Emergency emergency;
@@ -30,95 +32,84 @@ TaskHandle_t calibrateTaskHandle;
 TaskHandle_t moveYawCompensatedTaskHandle;
 
 void processCommand(const String& command) {
+    static const std::unordered_map<String, void(*)(const String&)> commandHandlers = {
+        {"Brightness", [](const String& cmd) {
+            int brightness;
+            if (sscanf(cmd.c_str(), "Brightness %d", &brightness) == 1) {
+                brightness = map(brightness, 0, 100, 0, 255);
+                led.setBrightness(brightness);
+                led.setColorRGB();
+            }
+        }},
+        {"ColorRGB", [](const String& cmd) {
+            int r, g, b;
+            if (sscanf(cmd.c_str(), "ColorRGB %d %d %d", &r, &g, &b) == 3) {
+                led.setColorRGB(r, g, b);
+            }
+        }},
+        {"Heading", [](const String& cmd) {
+            int heading;
+            if (sscanf(cmd.c_str(), "Heading %d", &heading) == 1) {
+                mag.setTargetHeading(heading);
+            }
+        }},
+        {"magPID", [](const String& cmd) {
+            int kp, ki, kd;
+            if (sscanf(cmd.c_str(), "magPID %d %d %d", &kp, &ki, &kd) == 3) {
+                mag.setPIDTunings(kp, ki, kd);
+            }
+        }},
+        {"Speed", [](const String& cmd) {
+            int speed;
+            if (sscanf(cmd.c_str(), "Speed %d", &speed) == 1) {
+                mecanum.setSpeed(speed);
+            }
+        }},
+        {"Moving", [](const String& cmd) {
+            int angle;
+            if (sscanf(cmd.c_str(), "Moving %d", &angle) == 1 && calibrateTaskHandle == NULL) {
+                if (moveYawCompensatedTaskHandle != NULL) {
+                    vTaskDelete(moveYawCompensatedTaskHandle);
+                    moveYawCompensatedTaskHandle = NULL;
+                }
+                xTaskCreatePinnedToCore(moveYawCompensatedTask, "MoveYawCompensatedTask", 2048, &angle, 1, &moveYawCompensatedTaskHandle, 1);
+            }
+        }},
+        {"stop", [](const String&) {
+            if (moveYawCompensatedTaskHandle != NULL) {
+                vTaskDelete(moveYawCompensatedTaskHandle);
+                moveYawCompensatedTaskHandle = NULL;
+            }
+            mecanum.move(0, 0, 0);
+        }},
+        {"emergency_stop", [](const String&) {
+            if (moveYawCompensatedTaskHandle != NULL) {
+                vTaskDelete(moveYawCompensatedTaskHandle);
+                moveYawCompensatedTaskHandle = NULL;
+            }
+            mecanum.move(0, 0, 0);
+            emergency.stop();
+        }},
+        {"activate", [](const String&) {
+            emergency.activate();
+        }},
+        {"magCalibration", [](const String&) {
+            if (calibrateTaskHandle == NULL) {
+                xTaskCreatePinnedToCore(calibrateTask, "CalibrateTask", 2048, NULL, 1, &calibrateTaskHandle, 1);
+            }
+        }}
+    };
 
-    if (command.indexOf("Brightness")!=-1) {
-        int brightness;
-        sscanf(command.c_str(), "Brightness %d", &brightness);
-        brightness = map(brightness, 0, 100, 0, 255);
-        led.setBrightness(brightness);
-        led.setColorRGB();
-    }
-
-    else if (command.indexOf("ColorRGB")!=-1) {
-        int r, g, b;
-        sscanf(command.c_str(), "ColorRGB %d %d %d", &r, &g, &b);
-        led.setColorRGB(r, g, b);
-    }
-
-    else if (command.indexOf("Heading")!=-1) {
-        int heading;
-        sscanf(command.c_str(), "Heading %d", &heading);
-        mag.setTargetHeading(heading);
-    }
-
-    else if (command.indexOf("magPID")!=-1) {
-        int kp, ki, kd;
-        sscanf(command.c_str(), "magPID %d %d %d", &kp, &ki, &kd);
-        mag.setPIDTunings(kp, ki, kd);
-    }
-
-    else if (command.indexOf("stop")!=-1){
-        if (moveYawCompensatedTaskHandle != NULL) {
-            vTaskDelete(moveYawCompensatedTaskHandle);
-            moveYawCompensatedTaskHandle = NULL;
+    for (const auto& pair : commandHandlers) {
+        if (command.startsWith(pair.first)) {
+            pair.second(command);
+            USBSerial.print("Received command: ");
+            USBSerial.println(command);
+            return;
         }
-        mecanum.move(0, 0, 0);
     }
 
-    else if (command.indexOf("emergency_stop")!=-1) {
-        if (moveYawCompensatedTaskHandle != NULL) {
-            vTaskDelete(moveYawCompensatedTaskHandle);
-            moveYawCompensatedTaskHandle = NULL;
-        }
-        mecanum.move(0, 0, 0);
-        emergency.stop();
-    }
-
-    else if (command.indexOf("activate")!=-1) {
-        emergency.activate();
-    }
-
-    else if (command.indexOf("magCalibration")!=-1 && calibrateTaskHandle == NULL) {
-        xTaskCreatePinnedToCore(
-            calibrateTask,
-            "CalibrateTask",   
-            2048,  
-            NULL, 
-            1,              
-            &calibrateTaskHandle,
-            1
-        );
-    }
-
-    else if (command.indexOf("Moving")!=-1 && calibrateTaskHandle == NULL) {
-        int angle;
-        sscanf(command.c_str(), "Moving %d", &angle);
-
-        if (moveYawCompensatedTaskHandle != NULL) {
-            vTaskDelete(moveYawCompensatedTaskHandle);
-            moveYawCompensatedTaskHandle = NULL;
-        }
-
-        xTaskCreatePinnedToCore(
-            moveYawCompensatedTask,
-            "MoveYawCompensatedTask",   
-            2048,  
-            &angle, 
-            1,              
-            &moveYawCompensatedTaskHandle,
-            1
-        );
-
-        //mecanum.move(angle, mecanum.getSpeed(), 0);
-    }
-    
-    else if (command.indexOf("Speed")!=-1){
-        int speed;
-        sscanf(command.c_str(), "Speed %d", &speed);
-        mecanum.setSpeed(speed);
-    }
-
-    USBSerial.print("Received command: ");
+    USBSerial.print("Unknown command: ");
     USBSerial.println(command);
 }
 
@@ -185,15 +176,7 @@ void setup(){
     ble.init();
     ble.setCommandCallback(processCommand);
 
-    xTaskCreatePinnedToCore(
-        blinkTask,
-        "MyTask",   
-        2048,  
-        NULL, 
-        1,              
-        &blinkTaskHandle,
-        1
-    );
+    xTaskCreatePinnedToCore(blinkTask, "MyTask", 2048, NULL, 1, &blinkTaskHandle, 1);
 }
 
 void loop(){
@@ -216,15 +199,7 @@ void loop(){
 
     if (blinkTaskHandle == NULL && !ble.isConnected()) {
         emergency.stop();
-        xTaskCreatePinnedToCore(
-            blinkTask,
-            "MyTask",   
-            2048,  
-            NULL, 
-            1,              
-            &blinkTaskHandle,
-            1
-        );
+        xTaskCreatePinnedToCore(blinkTask, "MyTask", 2048, NULL, 1, &blinkTaskHandle, 1);
     }
 
     //mecanum.move(0, 50, 0);
