@@ -20,6 +20,9 @@ _\ \   <| |_| / _  \ (_) | (__|   <  __/ |_
 
 #include <unordered_map>
 
+#define DEBUG true
+#define DEBUG_PRINTLN(x) if (DEBUG) USBSerial.println(x)
+
 USBCDC USBSerial;
 Mecanum mecanum;
 Emergency emergency;
@@ -103,14 +106,12 @@ void processCommand(const String& command) {
     for (const auto& pair : commandHandlers) {
         if (command.startsWith(pair.first)) {
             pair.second(command);
-            USBSerial.print("Received command: ");
-            USBSerial.println(command);
+            DEBUG_PRINTLN("Command: " + command);
             return;
         }
     }
 
-    USBSerial.print("Unknown command: ");
-    USBSerial.println(command);
+    DEBUG_PRINTLN("Unknown command: " + command);
 }
 
 void blinkTask(void *pvParameters) {
@@ -126,13 +127,13 @@ void blinkTask(void *pvParameters) {
 }
 
 void calibrateTask(void *pvParameters) {
-    USBSerial.println("Calibrating magnetometer...");
+    DEBUG_PRINTLN("Calibrating Magnetometer...");
     mecanum.rotate(100);
     if (mag.calibrate()) {
         mecanum.move(0,0,0);
-        USBSerial.println("Calibration complete.");
+        DEBUG_PRINTLN("Calibration successful.");
     } else {
-        USBSerial.println("Calibration failed.");
+        DEBUG_PRINTLN("Calibration failed.");
     }
     mecanum.move(0,0,0);
     calibrateTaskHandle = NULL;
@@ -146,10 +147,7 @@ void moveYawCompensatedTask(void *pvParameters) {
         float heading = mag.getHeading();
         float turn = mag.computePID(heading);
         mecanum.move(angle, mag.getHeading(), turn);
-        USBSerial.print("Angle: ");
-        USBSerial.print(angle);
-        USBSerial.print(" Turn: ");
-        USBSerial.println(turn);
+        DEBUG_PRINTLN("Angle: " + String(angle) + " Turn: " + String(turn));
         vTaskDelay(100);
     }
 }
