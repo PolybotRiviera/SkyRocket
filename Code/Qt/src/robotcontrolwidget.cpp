@@ -91,28 +91,16 @@ void RobotControlWidget::keyPressEvent(QKeyEvent *event)
 
     switch (event->key()) {
     case Qt::Key_Z: // Forward
-        if (!(lastKey=="z")) {
-            sendCommand("Moving 0");
-            lastKey = "z";
-        }
+        forward = true;
         break;
     case Qt::Key_S: // Backward
-        if (!(lastKey=="s")) {
-            sendCommand("Moving 180");
-            lastKey = "s";
-        }
+        backward = true;
         break;
     case Qt::Key_Q: // Left
-        if (!(lastKey=="q")) {
-            sendCommand("Moving 270");
-            lastKey = "q";
-        }
+        left = true;
         break;
     case Qt::Key_D: // Right
-        if (!(lastKey=="d")) {
-            sendCommand("Moving 90");
-            lastKey = "d";
-        }
+        right = true;
         break;
     case Qt::Key_K:
         emergencyStop();
@@ -122,6 +110,7 @@ void RobotControlWidget::keyPressEvent(QKeyEvent *event)
         return;
     }
     event->accept();
+    processCommand();
 }
 
 void RobotControlWidget::keyReleaseEvent(QKeyEvent *event)
@@ -138,28 +127,16 @@ void RobotControlWidget::keyReleaseEvent(QKeyEvent *event)
 
     switch (event->key()) {
     case Qt::Key_Z: // Forward
-        if (lastKey=="z") {
-            sendCommand("stop");
-            lastKey = "";
-        }
+        forward = false;
         break;
     case Qt::Key_S: // Backward
-        if (lastKey=="s") {
-            sendCommand("stop");
-            lastKey = "";
-        }
+        backward = false;
         break;
     case Qt::Key_Q: // Left
-        if (lastKey=="q") {
-            sendCommand("stop");
-            lastKey = "";
-        }
+        left = false;
         break;
     case Qt::Key_D: // Right
-        if (lastKey=="d") {
-            sendCommand("stop");
-            lastKey = "";
-        }
+        right = false;
         break;
     case Qt::Key_K:
         emergencyStop();
@@ -169,10 +146,35 @@ void RobotControlWidget::keyReleaseEvent(QKeyEvent *event)
         return;
     }
     event->accept();
+    processCommand();
 }
 
 void RobotControlWidget::sendSpeed(){
     sendCommand(QString("Speed %1").arg(speed));
+}
+
+void RobotControlWidget::processCommand(){
+
+    if(!forward && !backward && !left && !right){
+        sendCommand("stop");
+        return;
+    }
+
+    if(forward){
+        if(left){sendCommand("Moving 315");}
+        else if(right){sendCommand("Moving 45");}
+        else{sendCommand("Moving 0");}
+    }
+
+    else if(backward){
+        if(left){sendCommand("Moving 225");}
+        else if(right){sendCommand("Moving 135");}
+        else{sendCommand("Moving 180");}
+    }
+
+    else if(right){sendCommand("Moving 90");}
+
+    else if(left){sendCommand("Moving 270");}
 }
 
 void RobotControlWidget::sendCommand(const QString &command)

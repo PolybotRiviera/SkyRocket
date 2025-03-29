@@ -19,6 +19,7 @@ protected:
     void keyReleaseEvent(QKeyEvent *event) override;
 private slots:
     void sendCommand(const QString &command);
+    void processCommand();
     void emergencyStop();
     void activateRobot();
     void sendSpeed();
@@ -33,6 +34,7 @@ private:
     int speed;
     bool isEmergencyStopped;
     QString lastKey = "";
+    bool forward = false, backward = false, left = false, right = false;
 };
 
 #endif
