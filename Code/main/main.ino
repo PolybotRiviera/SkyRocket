@@ -11,14 +11,14 @@ _\ \   <| |_| / _  \ (_) | (__|   <  __/ |_
 
 
 #include <Arduino.h>
+#include <unordered_map>
+
 #include "include/Mecanum.hpp"
 #include "include/Emergency.hpp"
 #include "include/LED.hpp"
 #include "include/BLE.hpp"
 #include "include/Magnetometer.hpp"
 #include "USB.h"
-
-#include <unordered_map>
 
 #define DEBUG true
 #define DEBUG_PRINTLN(x) if (DEBUG) USBSerial.println(x)
@@ -122,6 +122,7 @@ void blinkTask(void *pvParameters) {
     led.setBrightness(10);
     led.setColorRGB(0, 255, 0);
     emergency.activate();
+    DEBUG_PRINTLN("Connected to BLE device.");
     blinkTaskHandle = NULL;
     vTaskDelete(NULL);
 }
@@ -196,6 +197,7 @@ void loop(){
 
 
     if (blinkTaskHandle == NULL && !ble.isConnected()) {
+        DEBUG_PRINTLN("Disconnected from BLE device.");
         emergency.stop();
         xTaskCreatePinnedToCore(blinkTask, "MyTask", 2048, NULL, 1, &blinkTaskHandle, 1);
     }

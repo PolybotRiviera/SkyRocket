@@ -40,8 +40,7 @@ void Mecanum::move(float angle, int speed, int turn){
     int v2 = speed * cos(rad + PI / 4) - turn;
     int v3 = speed * cos(rad + PI / 4) + turn;
     int v4 = speed * sin(rad + PI / 4) - turn;
-
-    // Add a constraint between 0 and 255 for 125 + v1
+    
     v1 = constrain(125 + v1, 0, 255);
     v2 = constrain(125 - v2, 0, 255);
     v3 = constrain(125 + v3, 0, 255);
