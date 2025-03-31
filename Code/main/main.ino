@@ -34,8 +34,9 @@ TaskHandle_t blinkTaskHandle;
 TaskHandle_t calibrateTaskHandle;
 TaskHandle_t moveYawCompensatedTaskHandle;
 
+
 void processCommand(const String& command) {
-    static const std::unordered_map<String, void(*)(const String&)> commandHandlers = {
+    static const std::unordered_map<const char*, void(*)(const String&)> commandHandlers = {
         {"Brightness", [](const String& cmd) {
             int brightness;
             if (sscanf(cmd.c_str(), "Brightness %d", &brightness) == 1) {
