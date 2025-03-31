@@ -35,6 +35,118 @@ TaskHandle_t calibrateTaskHandle;
 TaskHandle_t moveYawCompensatedTaskHandle;
 
 
+
+enum COMMANDS : uint8_t {
+    BRIGHTNESS = 0,      // 1 byte: brightness (0-100)
+    COLOR_RGB,          // 3 bytes: r, g, b (0-255 each)
+    HEADING,           // 2 bytes: heading (int16_t)
+    MAG_PID,          // 6 bytes: kp, ki, kd (int16_t each)
+    SPEED,            // 2 bytes: speed (int16_t)
+    MOVING,          // 2 bytes: angle (int16_t)
+    STOP,           // 0 bytes
+    EMERGENCY_STOP,// 0 bytes
+    ACTIVATE,     // 0 bytes
+    MAG_CALIBRATION // 0 bytes
+};
+
+void processCommand(const uint8_t* data, size_t length) {
+    if (length < 1) return;  // Need at least command byte
+    
+    COMMANDS cmd = static_cast<COMMANDS>(data[0]);
+    
+    switch (cmd) {
+        case BRIGHTNESS:
+            if (length >= 2) {
+                uint8_t brightness = data[1];
+                brightness = map(brightness, 0, 100, 0, 255);
+                led.setBrightness(brightness);
+                led.setColorRGB();
+            }
+            break;
+            
+        case COLOR_RGB:
+            if (length >= 4) {
+                uint8_t r = data[1];
+                uint8_t g = data[2];
+                uint8_t b = data[3];
+                led.setColorRGB(r, g, b);
+            }
+            break;
+            
+        case HEADING:
+            if (length >= 3) {
+                int16_t heading = (data[1] << 8) | data[2];
+                mag.setTargetHeading(heading);
+            }
+            break;
+            
+        case MAG_PID:
+            if (length >= 7) {
+                int16_t kp = (data[1] << 8) | data[2];
+                int16_t ki = (data[3] << 8) | data[4];
+                int16_t kd = (data[5] << 8) | data[6];
+                mag.setPIDTunings(kp, ki, kd);
+            }
+            break;
+            
+        case SPEED:
+            if (length >= 3) {
+                int16_t speed = (data[1] << 8) | data[2];
+                mecanum.setSpeed(speed);
+            }
+            break;
+            
+        case MOVING:
+            if (length >= 3 && calibrateTaskHandle == NULL) {
+                int16_t angle = (data[1] << 8) | data[2];
+                if (moveYawCompensatedTaskHandle != NULL) {
+                    vTaskDelete(moveYawCompensatedTaskHandle);
+                    moveYawCompensatedTaskHandle = NULL;
+                }
+                xTaskCreatePinnedToCore(moveYawCompensatedTask, "MoveYawCompensatedTask", 
+                                      2048, &angle, 1, &moveYawCompensatedTaskHandle, 1);
+            }
+            break;
+            
+        case STOP:
+            if (moveYawCompensatedTaskHandle != NULL) {
+                vTaskDelete(moveYawCompensatedTaskHandle);
+                moveYawCompensatedTaskHandle = NULL;
+            }
+            mecanum.move(0, 0, 0);
+            break;
+            
+        case EMERGENCY_STOP:
+            if (moveYawCompensatedTaskHandle != NULL) {
+                vTaskDelete(moveYawCompensatedTaskHandle);
+                moveYawCompensatedTaskHandle = NULL;
+            }
+            mecanum.move(0, 0, 0);
+            emergency.stop();
+            break;
+            
+        case ACTIVATE:
+            emergency.activate();
+            break;
+            
+        case MAG_CALIBRATION:
+            if (calibrateTaskHandle == NULL) {
+                xTaskCreatePinnedToCore(calibrateTask, "CalibrateTask", 
+                                      2048, NULL, 1, &calibrateTaskHandle, 1);
+            }
+            break;
+            
+        default:
+            DEBUG_PRINTLN("Unknown command: " + String(cmd));
+            return;
+    }
+    
+    DEBUG_PRINT("Command executed: " + String(cmd));
+    DEBUG_PRINTLN(" (length: " + String(length) + ")");
+}
+
+
+/*
 void processCommand(const String& command) {
     static const std::unordered_map<const char*, void(*)(const String&)> commandHandlers = {
         {"Brightness", [](const String& cmd) {
@@ -115,6 +227,8 @@ void processCommand(const String& command) {
     DEBUG_PRINTLN("Unknown command: " + command);
 }
 
+*/
+
 void blinkTask(void *pvParameters) {
     while (!ble.isConnected()) {
         led.setBrightness(50);
@@ -175,6 +289,9 @@ void setup(){
     // BLE setup
     ble.init();
     ble.setCommandCallback(processCommand);
+
+    pinMode(4, OUTPUT);
+    digitalWrite(4, HIGH);
 
     xTaskCreatePinnedToCore(blinkTask, "MyTask", 2048, NULL, 1, &blinkTaskHandle, 1);
 }
