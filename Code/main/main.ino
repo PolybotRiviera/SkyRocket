@@ -32,9 +32,7 @@ Magnetometer mag;
 
 TaskHandle_t blinkTaskHandle; 
 TaskHandle_t calibrateTaskHandle;
-TaskHandle_t moveYawCompensatedTaskHandle;
-
-
+TaskHandle_t yawCompensatedTaskHandle;
 
 enum COMMAND : uint8_t {
     BRIGHTNESS = 0,      // 1 byte: brightness (0-100)
@@ -46,7 +44,8 @@ enum COMMAND : uint8_t {
     STOP,           // 0 bytes
     EMERGENCY_STOP,// 0 bytes
     ACTIVATE,     // 0 bytes
-    MAG_CALIBRATION // 0 bytes
+    MAG_CALIBRATION, // 0 bytes
+    YAW_COMPENSATED_TOGGLE, // 0 bytes
 };
 
 void processCommand(const uint8_t* data, size_t length) {
@@ -114,18 +113,20 @@ void processCommand(const uint8_t* data, size_t length) {
             break;
             
         case STOP:
+            /*
             if (moveYawCompensatedTaskHandle != NULL) {
                 vTaskDelete(moveYawCompensatedTaskHandle);
                 moveYawCompensatedTaskHandle = NULL;
-            }
+            }*/
             mecanum.move(0, 0, 0);
             break;
             
         case EMERGENCY_STOP:
-            if (moveYawCompensatedTaskHandle != NULL) {
+            /*if (moveYawCompensatedTaskHandle != NULL) {
                 vTaskDelete(moveYawCompensatedTaskHandle);
                 moveYawCompensatedTaskHandle = NULL;
             }
+            */
             mecanum.move(0, 0, 0);
             emergency.stop();
             break;
@@ -137,6 +138,16 @@ void processCommand(const uint8_t* data, size_t length) {
         case MAG_CALIBRATION:
             if (calibrateTaskHandle == NULL) {
                 xTaskCreatePinnedToCore(calibrateTask, "CalibrateTask", 2048, NULL, 1, &calibrateTaskHandle, 1);
+            }
+            break;
+
+        case YAW_COMPENSATED_TOGGLE:
+            if (yawCompensatedTaskHandle != NULL) {
+                vTaskDelete(yawCompensatedTaskHandle);
+                yawCompensatedTaskHandle = NULL;
+                mecanum.move(0, 0, 0);
+            } else {
+                xTaskCreatePinnedToCore(yawCompensatedTask, "MoveYawCompensatedTask", 2048, NULL, 1, &yawCompensatedTaskHandle, 1);
             }
             break;
             
@@ -175,6 +186,18 @@ void calibrateTask(void *pvParameters) {
     vTaskDelete(NULL);
 }
 
+void yawCompensatedTask(void *pvParameters) {
+    while (true) {
+        float heading = mag.getHeading();
+        float turn = mag.computePID(heading);
+        mecanum.move(0, 0, turn);
+        DEBUG_PRINTLN(" Turn: " + String(turn));
+        vTaskDelay(100);
+    }
+    vTaskDelete(NULL);
+}
+
+/*
 void moveYawCompensatedTask(void *pvParameters) {
     int angle = *(int*)pvParameters;
     mag.setTargetHeading(mag.getHeading());
@@ -186,7 +209,7 @@ void moveYawCompensatedTask(void *pvParameters) {
         vTaskDelay(100);
     }
 }
-
+*/
 void setup(){
 
     // Serial setup

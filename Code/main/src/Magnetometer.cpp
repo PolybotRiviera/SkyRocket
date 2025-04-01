@@ -125,7 +125,7 @@ float Magnetometer::computePID(float currentHeading) {
     float output = pTerm + iTerm + dTerm;
     lastError = error;
 
-    output = constrain(output, -50, 50);
+    //output = constrain(output, -50, 50);
 
     return output;
 }
