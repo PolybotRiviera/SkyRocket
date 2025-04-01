@@ -33,6 +33,7 @@ Magnetometer mag;
 TaskHandle_t blinkTaskHandle; 
 TaskHandle_t calibrateTaskHandle;
 TaskHandle_t yawCompensatedTaskHandle;
+TaskHandle_t moveTaskHandle;
 
 enum COMMAND : uint8_t {
     BRIGHTNESS = 0,      // 1 byte: brightness (0-100)
@@ -99,16 +100,15 @@ void processCommand(const uint8_t* data, size_t length) {
             if (length >= 4 && calibrateTaskHandle == NULL) {
                 int16_t angle = (data[1] << 8) | data[2];
                 int8_t turnRate = static_cast<int8_t>(data[3]);
-                int speed = mecanum.getSpeed();
+                mecanum.setAngle(angle);
+                mecanum.setTurn(turnRate);
+                mecanum.setState(1);
+                /*int speed = mecanum.getSpeed();
                 if (angle == 365){
                     mecanum.move(0, 0, speed*turnRate);
                 }
-                else {mecanum.move(angle, speed, speed*turnRate);}
-                /*if (moveYawCompensatedTaskHandle != NULL) {
-                    vTaskDelete(moveYawCompensatedTaskHandle);
-                    moveYawCompensatedTaskHandle = NULL;
-                }
-                xTaskCreatePinnedToCore(moveYawCompensatedTask, "MoveYawCompensatedTask", 2048, &params, 1, &moveYawCompensatedTaskHandle, 1);*/
+                else {mecanum.move(angle, speed, mag.getCorrection());}*/
+
             }
             break;
             
@@ -119,6 +119,9 @@ void processCommand(const uint8_t* data, size_t length) {
                 moveYawCompensatedTaskHandle = NULL;
             }*/
             mecanum.move(0, 0, 0);
+            mecanum.setTurn(0);
+            mecanum.setAngle(0);
+            mecanum.setState(0);
             break;
             
         case EMERGENCY_STOP:
@@ -190,26 +193,25 @@ void yawCompensatedTask(void *pvParameters) {
     while (true) {
         float heading = mag.getHeading();
         float turn = mag.computePID(heading);
-        mecanum.move(0, 0, turn);
-        DEBUG_PRINTLN(" Turn: " + String(turn));
+        mag.setCorrection(turn);
+        //mecanum.move(0, 0, turn);
         vTaskDelay(100);
     }
+    mag.setCorrection(0);
     vTaskDelete(NULL);
 }
 
-/*
-void moveYawCompensatedTask(void *pvParameters) {
-    int angle = *(int*)pvParameters;
-    mag.setTargetHeading(mag.getHeading());
+void moveTask(void *pvParameters) {
+
     while (true) {
-        float heading = mag.getHeading();
-        float turn = mag.computePID(heading);
-        mecanum.move(angle, mecanum.getSpeed(), turn);
-        //DEBUG_PRINTLN("Angle: " + String(angle) + " Turn: " + String(turn));
-        vTaskDelay(100);
+
+        mecanum.move(mecanum.getAngle(), mecanum.getSpeed() * mecanum.notRotating, mecanum.getTurn() + mag.getCorrection());
+        DEBUG_PRINTLN("Angle: " + String(mecanum.getAngle()) + ", Speed: " + String(mecanum.getSpeed()) + ", Turn: " + String(mecanum.getTurn() + mag.getCorrection()));
+        vTaskDelay(200);
     }
+
 }
-*/
+
 void setup(){
 
     // Serial setup
@@ -225,7 +227,7 @@ void setup(){
     //Magnetometer setup
     mag.begin(Wire);
     mag.initialize();        
-    mag.setPIDTunings(1.0, 0.5, 0); // kp, ki, kd
+    mag.setPIDTunings(1.0, 0, 0); // kp, ki, kd
     mag.setTargetHeading(90);
 
     // BLE setup
@@ -233,6 +235,12 @@ void setup(){
     ble.setCommandCallback(processCommand);
 
     xTaskCreatePinnedToCore(blinkTask, "MyTask", 2048, NULL, 1, &blinkTaskHandle, 1);
+
+    if (moveTaskHandle != NULL) {
+        vTaskDelete(moveTaskHandle);
+        moveTaskHandle = NULL;
+    }
+    xTaskCreatePinnedToCore(moveTask, "MoveTask", 2048, NULL, 1, &moveTaskHandle, 1);
 }
 
 void loop(){

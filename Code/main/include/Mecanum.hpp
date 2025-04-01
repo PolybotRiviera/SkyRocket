@@ -26,6 +26,12 @@ class Mecanum {
         void rotate(int speed);
         void setSpeed(int speed) { this->speed = speed; };
         int getSpeed() { return speed; };
+        void setAngle(float angle) { this->angle = angle; };
+        float getAngle() { return angle; };
+        void setTurn(int turn) { this->turn = turn; };
+        int getTurn() { return turn; };
+        void setState(int state) { this->state = state; };
+        int getState() { return state; };
 
     private:
 
@@ -37,6 +43,9 @@ class Mecanum {
         static const int _LEDC_FREQ = 30000;
 
         int speed = 50;
+        float angle = 0;
+        int turn = 0;
+        int state = 0;
 
 };
 

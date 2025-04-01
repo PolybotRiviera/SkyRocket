@@ -30,6 +30,7 @@ private:
     float lastError;     
     float targetHeading;  
     unsigned long lastTime;
+    float correction = 0;
 
 public:
     Magnetometer(int i2cAddress = 12345);
@@ -44,6 +45,8 @@ public:
     void setPIDTunings(float kp, float ki, float kd);
     void setTargetHeading(float target);
     float computePID(float currentHeading);
+    void setCorrection(float correction) { this->correction = correction; }
+    float getCorrection() { return correction; }
 };
 
 #endif
