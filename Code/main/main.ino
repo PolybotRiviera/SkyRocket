@@ -141,93 +141,8 @@ void processCommand(const uint8_t* data, size_t length) {
             return;
     }
     
-    DEBUG_PRINT("Command executed: " + String(cmd));
-    DEBUG_PRINTLN(" (length: " + String(length) + ")");
+    DEBUG_PRINTLN("Command executed: " + String(cmd) + " (length: " + String(length) + ")");
 }
-
-
-/*
-void processCommand(const String& command) {
-    static const std::unordered_map<const char*, void(*)(const String&)> commandHandlers = {
-        {"Brightness", [](const String& cmd) {
-            int brightness;
-            if (sscanf(cmd.c_str(), "Brightness %d", &brightness) == 1) {
-                brightness = map(brightness, 0, 100, 0, 255);
-                led.setBrightness(brightness);
-                led.setColorRGB();
-            }
-        }},
-        {"ColorRGB", [](const String& cmd) {
-            int r, g, b;
-            if (sscanf(cmd.c_str(), "ColorRGB %d %d %d", &r, &g, &b) == 3) {
-                led.setColorRGB(r, g, b);
-            }
-        }},
-        {"Heading", [](const String& cmd) {
-            int heading;
-            if (sscanf(cmd.c_str(), "Heading %d", &heading) == 1) {
-                mag.setTargetHeading(heading);
-            }
-        }},
-        {"magPID", [](const String& cmd) {
-            int kp, ki, kd;
-            if (sscanf(cmd.c_str(), "magPID %d %d %d", &kp, &ki, &kd) == 3) {
-                mag.setPIDTunings(kp, ki, kd);
-            }
-        }},
-        {"Speed", [](const String& cmd) {
-            int speed;
-            if (sscanf(cmd.c_str(), "Speed %d", &speed) == 1) {
-                mecanum.setSpeed(speed);
-            }
-        }},
-        {"Moving", [](const String& cmd) {
-            int angle;
-            if (sscanf(cmd.c_str(), "Moving %d", &angle) == 1 && calibrateTaskHandle == NULL) {
-                if (moveYawCompensatedTaskHandle != NULL) {
-                    vTaskDelete(moveYawCompensatedTaskHandle);
-                    moveYawCompensatedTaskHandle = NULL;
-                }
-                xTaskCreatePinnedToCore(moveYawCompensatedTask, "MoveYawCompensatedTask", 2048, &angle, 1, &moveYawCompensatedTaskHandle, 1);
-            }
-        }},
-        {"stop", [](const String&) {
-            if (moveYawCompensatedTaskHandle != NULL) {
-                vTaskDelete(moveYawCompensatedTaskHandle);
-                moveYawCompensatedTaskHandle = NULL;
-            }
-            mecanum.move(0, 0, 0);
-        }},
-        {"emergency_stop", [](const String&) {
-            if (moveYawCompensatedTaskHandle != NULL) {
-                vTaskDelete(moveYawCompensatedTaskHandle);
-                moveYawCompensatedTaskHandle = NULL;
-            }
-            mecanum.move(0, 0, 0);
-            emergency.stop();
-        }},
-        {"activate", [](const String&) {
-            emergency.activate();
-        }},
-        {"magCalibration", [](const String&) {
-            if (calibrateTaskHandle == NULL) {
-                xTaskCreatePinnedToCore(calibrateTask, "CalibrateTask", 2048, NULL, 1, &calibrateTaskHandle, 1);
-            }
-        }}
-    };
-
-    for (const auto& pair : commandHandlers) {
-        if (command.startsWith(pair.first)) {
-            pair.second(command);
-            DEBUG_PRINTLN("Command: " + command);
-            return;
-        }
-    }
-
-    DEBUG_PRINTLN("Unknown command: " + command);
-}
-
-*/
 
 void blinkTask(void *pvParameters) {
     while (!ble.isConnected()) {
@@ -262,8 +177,8 @@ void moveYawCompensatedTask(void *pvParameters) {
     while (true) {
         float heading = mag.getHeading();
         float turn = mag.computePID(heading);
-        mecanum.move(angle, mag.getHeading(), turn);
-        DEBUG_PRINTLN("Angle: " + String(angle) + " Turn: " + String(turn));
+        mecanum.move(angle, mecanum.getSpeed(), turn);
+        //DEBUG_PRINTLN("Angle: " + String(angle) + " Turn: " + String(turn));
         vTaskDelay(100);
     }
 }
@@ -289,9 +204,6 @@ void setup(){
     // BLE setup
     ble.init();
     ble.setCommandCallback(processCommand);
-
-    pinMode(4, OUTPUT);
-    digitalWrite(4, HIGH);
 
     xTaskCreatePinnedToCore(blinkTask, "MyTask", 2048, NULL, 1, &blinkTaskHandle, 1);
 }

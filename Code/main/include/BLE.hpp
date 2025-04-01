@@ -27,7 +27,7 @@ public:
 
     bool isConnected() const { return isConnected_; }
 
-    using CommandCallback = void (*)(const String& command);
+    using CommandCallback = std::function<void(const uint8_t*, size_t)>;
     void setCommandCallback(CommandCallback callback);
 
 private:
