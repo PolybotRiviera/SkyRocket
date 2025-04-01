@@ -18,6 +18,7 @@ public:
 private slots:
     void onApplyPIDClicked();
     void onCalibrateClicked();
+    void onYawClicked();
     void updateHeadingLabel(int value);
     void sendHeadingValue();
 
@@ -29,6 +30,7 @@ private:
     QDoubleSpinBox *kdSpinBox;              
     QPushButton *applyButton;               
     QPushButton *calibrateButton;
+    QPushButton *yawButton;
     QSlider *headingSlider;               
     QLabel *headingValueLabel;               
     QLabel *headingLabel;

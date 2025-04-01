@@ -89,7 +89,39 @@ void RobotControlWidget::keyPressEvent(QKeyEvent *event)
         return;
     }
 
+    int16_t value = 0;
+    QByteArray data;
+    data.append(static_cast<char>(2));  // HEADING command ID
+
+
     switch (event->key()) {
+    case Qt::Key_Up:
+        data.append(static_cast<char>(value >> 8));  // High byte
+        data.append(static_cast<char>(value & 0xFF));  // Low byte
+        sendCommand(data);
+        break;
+
+    case Qt::Key_Down:
+        value = 180;
+        data.append(static_cast<char>(value >> 8));  // High byte
+        data.append(static_cast<char>(value & 0xFF));  // Low byte
+        sendCommand(data);
+        break;
+
+    case Qt::Key_Left:
+        value = 270;
+        data.append(static_cast<char>(value >> 8));  // High byte
+        data.append(static_cast<char>(value & 0xFF));  // Low byte
+        sendCommand(data);
+        break;
+
+    case Qt::Key_Right:
+        value = 90;
+        data.append(static_cast<char>(value >> 8));  // High byte
+        data.append(static_cast<char>(value & 0xFF));  // Low byte
+        sendCommand(data);
+        break;
+
     case Qt::Key_Z: // Forward
         forward = true;
         break;
@@ -101,6 +133,12 @@ void RobotControlWidget::keyPressEvent(QKeyEvent *event)
         break;
     case Qt::Key_D: // Right
         right = true;
+        break;
+    case Qt::Key_A: // Turn Left
+        turnLeft = true;
+        break;
+    case Qt::Key_E: // Turn Right
+        turnRight = true;
         break;
     case Qt::Key_K:
         emergencyStop();
@@ -137,6 +175,12 @@ void RobotControlWidget::keyReleaseEvent(QKeyEvent *event)
         break;
     case Qt::Key_D: // Right
         right = false;
+    case Qt::Key_A: // Turn Left
+        turnLeft = false;
+        break;
+    case Qt::Key_E: // Turn Right
+        turnRight = false;
+        break;
         break;
     case Qt::Key_K:
         emergencyStop();
@@ -149,43 +193,60 @@ void RobotControlWidget::keyReleaseEvent(QKeyEvent *event)
     processCommand();
 }
 
-void RobotControlWidget::sendSpeed(){
-    sendCommand(QString("Speed %1").arg(speed));
+void RobotControlWidget::sendSpeed() {
+    QByteArray data;
+    data.append(static_cast<char>(4));  // SPEED command ID
+    data.append(static_cast<char>(speed >> 8));  // High byte
+    data.append(static_cast<char>(speed & 0xFF));  // Low byte
+    sendCommand(data);
 }
 
-void RobotControlWidget::processCommand(){
-
-    if(!forward && !backward && !left && !right){
-        sendCommand("stop");
+void RobotControlWidget::processCommand()
+{
+    if (!forward && !backward && !left && !right && !turnLeft && !turnRight) {
+        QByteArray data;
+        data.append(static_cast<char>(6));  // STOP command ID
+        sendCommand(data);
         return;
     }
 
-    if(forward){
-        if(left){sendCommand("Moving 315");}
-        else if(right){sendCommand("Moving 45");}
-        else{sendCommand("Moving 0");}
+    int16_t angle = 365;
+    int8_t turnRate = 0;
+
+    if (forward) {
+        if (left) angle = 315;
+        else if (right) angle = 45;
+        else angle = 0;
     }
-
-    else if(backward){
-        if(left){sendCommand("Moving 225");}
-        else if(right){sendCommand("Moving 135");}
-        else{sendCommand("Moving 180");}
+    else if (backward) {
+        if (left) angle = 225;
+        else if (right) angle = 135;
+        else angle = 180;
     }
+    else if (right) angle = 90;
+    else if (left) angle = 270;
 
-    else if(right){sendCommand("Moving 90");}
+    // Set turn rate based on A/E keys
+    if (turnLeft && !turnRight) turnRate = -1;  // Negative for left turn
+    else if (turnRight && !turnLeft) turnRate = 1;  // Positive for right turn
+    // If both are pressed, they cancel out (turnRate remains 0)
 
-    else if(left){sendCommand("Moving 270");}
+    QByteArray data;
+    data.append(static_cast<char>(5));  // MOVING command ID
+    data.append(static_cast<char>(angle >> 8));  // Angle high byte
+    data.append(static_cast<char>(angle & 0xFF));  // Angle low byte
+    data.append(static_cast<char>(turnRate));  // Turn rate byte
+    sendCommand(data);
 }
-
-void RobotControlWidget::sendCommand(const QString &command)
+void RobotControlWidget::sendCommand(const QByteArray &data)
 {
     if (!service || isEmergencyStopped) return;
 
-    qDebug() << command;
+    qDebug() << "Sending command:" << data.toHex();
 
     QLowEnergyCharacteristic characteristic = service->characteristic(characteristicUuid);
     if (characteristic.isValid()) {
-        service->writeCharacteristic(characteristic, command.toUtf8());
+        service->writeCharacteristic(characteristic, data);
     }
 }
 
@@ -193,9 +254,11 @@ void RobotControlWidget::emergencyStop()
 {
     if (!service) return;
 
+    QByteArray data;
+    data.append(static_cast<char>(7));  // EMERGENCY_STOP command ID
     QLowEnergyCharacteristic characteristic = service->characteristic(characteristicUuid);
     if (characteristic.isValid()) {
-        service->writeCharacteristic(characteristic, QByteArray("emergency_stop"));
+        service->writeCharacteristic(characteristic, data);
         isEmergencyStopped = true;
         emergencyStopButton->setVisible(false);
         activateButton->setVisible(true);
@@ -206,9 +269,11 @@ void RobotControlWidget::activateRobot()
 {
     if (!service) return;
 
+    QByteArray data;
+    data.append(static_cast<char>(8));  // ACTIVATE command ID
     QLowEnergyCharacteristic characteristic = service->characteristic(characteristicUuid);
     if (characteristic.isValid()) {
-        service->writeCharacteristic(characteristic, QByteArray("activate"));
+        service->writeCharacteristic(characteristic, data);
         isEmergencyStopped = false;
         emergencyStopButton->setVisible(true);
         activateButton->setVisible(false);

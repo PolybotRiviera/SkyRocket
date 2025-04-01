@@ -40,6 +40,9 @@ MagnetometerWidget::MagnetometerWidget(QLowEnergyService *service, QWidget *pare
     calibrateButton = new QPushButton("Calibrate", this);
     calibrateButton->setMaximumWidth(120);
 
+    yawButton = new QPushButton("Toggle Heading", this);
+    yawButton->setMaximumWidth(120);
+
     headingSlider = new QSlider(Qt::Horizontal, this);
     headingSlider->setRange(0, 360);
     headingSlider->setValue(0);
@@ -71,10 +74,12 @@ MagnetometerWidget::MagnetometerWidget(QLowEnergyService *service, QWidget *pare
 
     mainLayout->addWidget(applyButton);
     mainLayout->addWidget(calibrateButton);
+    mainLayout->addWidget(yawButton);
     mainLayout->addStretch();
 
     connect(applyButton, &QPushButton::clicked, this, &MagnetometerWidget::onApplyPIDClicked);
     connect(calibrateButton, &QPushButton::clicked, this, &MagnetometerWidget::onCalibrateClicked);
+    connect(yawButton, &QPushButton::clicked, this, &MagnetometerWidget::onYawClicked);
 
     connect(headingSlider, &QSlider::valueChanged, this, &MagnetometerWidget::updateHeadingLabel);
     connect(headingSlider, &QSlider::sliderReleased, this, &MagnetometerWidget::sendHeadingValue);
@@ -85,6 +90,24 @@ void MagnetometerWidget::setService(QLowEnergyService *newService)
     service = newService;
 }
 
+void MagnetometerWidget::onYawClicked()
+{
+    if (!service) {
+        qDebug() << "MagnetometerWidget: No BLE service available";
+        return;
+    }
+
+    QLowEnergyCharacteristic characteristic = service->characteristic(characteristicUuid);
+    if (!characteristic.isValid()) {
+        return;
+    }
+
+    QByteArray data;
+    data.append(static_cast<char>(10));  // YAW_COMPENSATED_TOGGLE command ID
+    service->writeCharacteristic(characteristic, data);
+    qDebug() << "Sending YAW_COMPENSATED_TOGGLE:" << data.toHex();
+}
+
 void MagnetometerWidget::onApplyPIDClicked()
 {
     if (!service) {
@@ -92,35 +115,46 @@ void MagnetometerWidget::onApplyPIDClicked()
         return;
     }
 
-    double Kp = kpSpinBox->value();
-    double Ki = kiSpinBox->value();
-    double Kd = kdSpinBox->value();
-
-    QString pidCommand = "magPID " + QString("%1 %2 %3").arg(Kp).arg(Ki).arg(Kd);
-
     QLowEnergyCharacteristic characteristic = service->characteristic(characteristicUuid);
-
     if (!characteristic.isValid()) {
         qDebug() << "MagnetometerWidget: Invalid PID characteristic";
         return;
     }
 
-    service->writeCharacteristic(characteristic, pidCommand.toUtf8());
+    // Convert double values to int16_t (multiply by 1000 to preserve 3 decimals)
+    int16_t kp = static_cast<int16_t>(kpSpinBox->value() * 1000);
+    int16_t ki = static_cast<int16_t>(kiSpinBox->value() * 1000);
+    int16_t kd = static_cast<int16_t>(kdSpinBox->value() * 1000);
+
+    QByteArray data;
+    data.append(static_cast<char>(3));  // MAG_PID command ID
+    data.append(static_cast<char>(kp >> 8));  // kp high byte
+    data.append(static_cast<char>(kp & 0xFF));  // kp low byte
+    data.append(static_cast<char>(ki >> 8));  // ki high byte
+    data.append(static_cast<char>(ki & 0xFF));  // ki low byte
+    data.append(static_cast<char>(kd >> 8));  // kd high byte
+    data.append(static_cast<char>(kd & 0xFF));  // kd low byte
+
+    service->writeCharacteristic(characteristic, data);
+    qDebug() << "Sending MAG_PID:" << data.toHex();
 }
 
-void MagnetometerWidget::onCalibrateClicked(){
+void MagnetometerWidget::onCalibrateClicked()
+{
     if (!service) {
         qDebug() << "MagnetometerWidget: No BLE service available";
         return;
     }
 
     QLowEnergyCharacteristic characteristic = service->characteristic(characteristicUuid);
-
     if (!characteristic.isValid()) {
         return;
     }
 
-    service->writeCharacteristic(characteristic, QString("magCalibration").toUtf8());
+    QByteArray data;
+    data.append(static_cast<char>(9));  // MAG_CALIBRATION command ID
+    service->writeCharacteristic(characteristic, data);
+    qDebug() << "Sending MAG_CALIBRATION:" << data.toHex();
 }
 
 void MagnetometerWidget::updateHeadingLabel(int value)
@@ -130,19 +164,23 @@ void MagnetometerWidget::updateHeadingLabel(int value)
 
 void MagnetometerWidget::sendHeadingValue()
 {
-    int value = headingSlider->value();
-
     if (!service) {
         qDebug() << "MagnetometerWidget: No BLE service available";
         return;
     }
 
-    QString headingCommand = "Heading " + QString::number(value);
-
     QLowEnergyCharacteristic characteristic = service->characteristic(characteristicUuid);
-    if (characteristic.isValid()) {
-        service->writeCharacteristic(characteristic, headingCommand.toUtf8());
-    } else {
+    if (!characteristic.isValid()) {
         qDebug() << "MagnetometerWidget: Invalid heading characteristic";
+        return;
     }
+
+    int16_t value = static_cast<int16_t>(headingSlider->value());
+    QByteArray data;
+    data.append(static_cast<char>(2));  // HEADING command ID
+    data.append(static_cast<char>(value >> 8));  // High byte
+    data.append(static_cast<char>(value & 0xFF));  // Low byte
+
+    service->writeCharacteristic(characteristic, data);
+    qDebug() << "Sending HEADING:" << data.toHex();
 }

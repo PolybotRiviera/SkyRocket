@@ -18,7 +18,7 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
 private slots:
-    void sendCommand(const QString &command);
+    void sendCommand(const QByteArray &command);
     void processCommand();
     void emergencyStop();
     void activateRobot();
@@ -33,8 +33,10 @@ private:
     QBluetoothUuid characteristicUuid;
     int speed;
     bool isEmergencyStopped;
-    QString lastKey = "";
-    bool forward = false, backward = false, left = false, right = false;
+    bool forward = false, backward = false, left = false, right = false, turnLeft = false, turnRight = false;
+
+
+
 };
 
 #endif

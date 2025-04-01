@@ -23,7 +23,7 @@ LEDControlWidget::LEDControlWidget(QLowEnergyService *service, QWidget *parent)
 
     brightnessSlider = new QSlider(Qt::Horizontal, this);
     brightnessSlider->setRange(0, 100);
-    brightnessSlider->setValue(50); // Initial speed
+    brightnessSlider->setValue(50);
     brightnessSlider->setMaximumWidth(120);
     layout->addWidget(brightnessSlider);
 
@@ -37,7 +37,6 @@ LEDControlWidget::LEDControlWidget(QLowEnergyService *service, QWidget *parent)
     });
 
     connect(brightnessSlider, &QSlider::sliderReleased, this, &LEDControlWidget::setBrightness);
-
 }
 
 void LEDControlWidget::setService(QLowEnergyService *newService)
@@ -49,45 +48,60 @@ void LEDControlWidget::changeColor()
 {
     if (!service) return;
 
-    _color = QColorDialog::getColor(Qt::white, this, "Select LED Color");
-    if (_color.isValid()) {
-        QString command = "ColorRGB " + QString("%1 %2 %3").arg(_color.red()).arg(_color.green()).arg(_color.blue());
+    QColor newColor = QColorDialog::getColor(_color, this, "Select LED Color");
+    if (newColor.isValid()) {
+        _color = newColor;
         QLowEnergyCharacteristic characteristic = service->characteristic(characteristicUuid);
         if (characteristic.isValid()) {
-            service->writeCharacteristic(characteristic, command.toUtf8());
+            QByteArray data;
+            data.append(static_cast<char>(1));  // COLOR_RGB command ID
+            data.append(static_cast<char>(_color.red()));
+            data.append(static_cast<char>(_color.green()));
+            data.append(static_cast<char>(_color.blue()));
+            service->writeCharacteristic(characteristic, data);
+            qDebug() << "Sending COLOR_RGB:" << data.toHex();
+            updateColorPreview(_color);
         } else {
             qDebug() << "LEDControlWidget: Invalid characteristic for writing";
         }
-        updateColorPreview(_color);
     }
 }
-
 void LEDControlWidget::toggleLed()
 {
     if (!service) return;
+
     isLedOn = !isLedOn;
     toggleButton->setText(isLedOn ? "Turn LED Off" : "Turn LED On");
     QLowEnergyCharacteristic characteristic = service->characteristic(characteristicUuid);
     if (characteristic.isValid()) {
-        QString command = "ColorRGB " + QString("%1 %2 %3").arg(_color.red()).arg(_color.green()).arg(_color.blue());
-        if (isLedOn){
-            service->writeCharacteristic(characteristic, command.toUtf8());
+        QByteArray data;
+        data.append(static_cast<char>(1));  // COLOR_RGB command ID
+        if (isLedOn) {
+            data.append(static_cast<char>(_color.red()));
+            data.append(static_cast<char>(_color.green()));
+            data.append(static_cast<char>(_color.blue()));
             updateColorPreview(_color);
-        }
-        else{
-            service->writeCharacteristic(characteristic, "ColorRGB 0 0 0");
+        } else {
+            data.append(static_cast<char>(0));  // R=0
+            data.append(static_cast<char>(0));  // G=0
+            data.append(static_cast<char>(0));  // B=0
             updateColorPreview(Qt::black);
         }
-
+        service->writeCharacteristic(characteristic, data);
+        qDebug() << "Sending COLOR_RGB (toggle):" << data.toHex();
     }
 }
 void LEDControlWidget::setBrightness()
 {
     if (!service) return;
+
     QLowEnergyCharacteristic characteristic = service->characteristic(characteristicUuid);
     if (characteristic.isValid()) {
-        QString command = "Brightness " + QString("%1").arg(brightness);
-        service->writeCharacteristic(characteristic, command.toUtf8());
+        QByteArray data;
+        data.append(static_cast<char>(0));  // BRIGHTNESS command ID
+        data.append(static_cast<char>(brightness));  // Brightness value (0-100)
+        service->writeCharacteristic(characteristic, data);
+        qDebug() << "Sending BRIGHTNESS:" << data.toHex();
         updateColorPreview(_color);
     }
 }
