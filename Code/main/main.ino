@@ -136,8 +136,7 @@ void processCommand(const uint8_t* data, size_t length) {
             
         case MAG_CALIBRATION:
             if (calibrateTaskHandle == NULL) {
-                xTaskCreatePinnedToCore(calibrateTask, "CalibrateTask", 
-                                      2048, NULL, 1, &calibrateTaskHandle, 1);
+                xTaskCreatePinnedToCore(calibrateTask, "CalibrateTask", 2048, NULL, 1, &calibrateTaskHandle, 1);
             }
             break;
             
