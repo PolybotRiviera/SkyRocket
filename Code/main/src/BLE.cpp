@@ -62,8 +62,9 @@ void BLE::MyServerCallbacks::onDisconnect(BLEServer* pServer) {
 
 void BLE::MyCharacteristicCallbacks::onWrite(BLECharacteristic* pCharacteristic) {
     if (ble_->isConnected_ && ble_->commandCallback_) {
-        std::string value = pCharacteristic->getValue();
-        ble_->commandCallback_(reinterpret_cast<const uint8_t*>(value.data()), value.length());
-        pCharacteristic->setValue("");
+        uint8_t* data = pCharacteristic->getData();
+        size_t length = pCharacteristic->getLength();
+        ble_->commandCallback_(data, length);
+        pCharacteristic->setValue("");  // Clear the value
     }
 }
