@@ -65,6 +65,6 @@ void BLE::MyCharacteristicCallbacks::onWrite(BLECharacteristic* pCharacteristic)
         uint8_t* data = pCharacteristic->getData();
         size_t length = pCharacteristic->getLength();
         ble_->commandCallback_(data, length);
-        pCharacteristic->setValue("");  // Clear the value
+        pCharacteristic->setValue("");
     }
 }

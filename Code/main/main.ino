@@ -36,13 +36,13 @@ TaskHandle_t moveYawCompensatedTaskHandle;
 
 
 
-enum COMMANDS : uint8_t {
+enum COMMAND : uint8_t {
     BRIGHTNESS = 0,      // 1 byte: brightness (0-100)
     COLOR_RGB,          // 3 bytes: r, g, b (0-255 each)
     HEADING,           // 2 bytes: heading (int16_t)
     MAG_PID,          // 6 bytes: kp, ki, kd (int16_t each)
     SPEED,            // 2 bytes: speed (int16_t)
-    MOVING,          // 2 bytes: angle (int16_t)
+    MOVING,          // 3 bytes: angle (int16_t)
     STOP,           // 0 bytes
     EMERGENCY_STOP,// 0 bytes
     ACTIVATE,     // 0 bytes
@@ -52,7 +52,7 @@ enum COMMANDS : uint8_t {
 void processCommand(const uint8_t* data, size_t length) {
     if (length < 1) return;  // Need at least command byte
     
-    COMMANDS cmd = static_cast<COMMANDS>(data[0]);
+    COMMAND cmd = static_cast<COMMAND>(data[0]);
     
     switch (cmd) {
         case BRIGHTNESS:
@@ -85,7 +85,7 @@ void processCommand(const uint8_t* data, size_t length) {
                 int16_t kp = (data[1] << 8) | data[2];
                 int16_t ki = (data[3] << 8) | data[4];
                 int16_t kd = (data[5] << 8) | data[6];
-                mag.setPIDTunings(kp, ki, kd);
+                mag.setPIDTunings(kp / 1000.0, ki / 1000.0, kd / 1000.0);
             }
             break;
             
@@ -97,14 +97,19 @@ void processCommand(const uint8_t* data, size_t length) {
             break;
             
         case MOVING:
-            if (length >= 3 && calibrateTaskHandle == NULL) {
+            if (length >= 4 && calibrateTaskHandle == NULL) {
                 int16_t angle = (data[1] << 8) | data[2];
-                if (moveYawCompensatedTaskHandle != NULL) {
+                int8_t turnRate = static_cast<int8_t>(data[3]);
+                int speed = mecanum.getSpeed();
+                if (angle == 365){
+                    mecanum.move(0, 0, speed*turnRate);
+                }
+                else {mecanum.move(angle, speed, speed*turnRate);}
+                /*if (moveYawCompensatedTaskHandle != NULL) {
                     vTaskDelete(moveYawCompensatedTaskHandle);
                     moveYawCompensatedTaskHandle = NULL;
                 }
-                xTaskCreatePinnedToCore(moveYawCompensatedTask, "MoveYawCompensatedTask", 
-                                      2048, &angle, 1, &moveYawCompensatedTaskHandle, 1);
+                xTaskCreatePinnedToCore(moveYawCompensatedTask, "MoveYawCompensatedTask", 2048, &params, 1, &moveYawCompensatedTaskHandle, 1);*/
             }
             break;
             
@@ -210,21 +215,6 @@ void setup(){
 
 void loop(){
 
-    //USBSerial.println(ble.isConnected());
-    //delay(1000);
-
-    // float heading = mag.getHeading();
-    // USBSerial.print("Compass Heading: ");
-    // USBSerial.println(heading);
-    // delay(50);
-
-    /*if (calibrateTaskHandle == NULL){
-        float heading = mag.getHeading();
-        float turn = mag.computePID(heading);
-        mecanum.rotate(turn);
-        vTaskDelay(50);
-    }*/
-
 
     if (blinkTaskHandle == NULL && !ble.isConnected()) {
         DEBUG_PRINTLN("Disconnected from BLE device.");
@@ -232,6 +222,5 @@ void loop(){
         xTaskCreatePinnedToCore(blinkTask, "MyTask", 2048, NULL, 1, &blinkTaskHandle, 1);
     }
 
-    //mecanum.move(0, 50, 0);
 
 }
