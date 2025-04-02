@@ -102,8 +102,14 @@ void Magnetometer::setTargetHeading(float target) {
 }
 
 float Magnetometer::computePID(float currentHeading) {
-
-    float error = targetHeading - currentHeading;
+    // Apply low-pass filter to reduce noise
+    static float filteredHeading = currentHeading; // Initialize on first call
+    const float alpha = 0.2f; // Filter coefficient (0-1), lower = more filtering
+    
+    filteredHeading = alpha * currentHeading + (1.0f - alpha) * filteredHeading;
+    
+    // Use filtered heading for PID calculations
+    float error = targetHeading - filteredHeading;
 
     if (error > 180.0) {
         error -= 360.0;
