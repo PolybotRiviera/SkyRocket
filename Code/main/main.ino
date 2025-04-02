@@ -12,7 +12,7 @@ _\ \   <| |_| / _  \ (_) | (__|   <  __/ |_
 
 #include <Arduino.h>
 #include <unordered_map>
-
+#include <Wire.h>
 #include "include/Mecanum.hpp"
 #include "include/Emergency.hpp"
 #include "include/LED.hpp"
@@ -30,6 +30,7 @@ Emergency emergency;
 LED led(21, 1, NEO_GRB + NEO_KHZ800);
 BLE ble;
 Magnetometer mag;
+HardwareSerial SerialLidar(1);
 Lidar lidar(SerialLidar, 18);
 
 TaskHandle_t blinkTaskHandle; 
