@@ -19,6 +19,7 @@ _\ \   <| |_| / _  \ (_) | (__|   <  __/ |_
 #include "include/BLE.hpp"
 #include "include/Magnetometer.hpp"
 #include "include/lidar.hpp"
+#include "include/Hedgehog.hpp"
 #include "USB.h"
 
 #define DEBUG true
@@ -27,6 +28,7 @@ _\ \   <| |_| / _  \ (_) | (__|   <  __/ |_
 USBCDC USBSerial;
 Mecanum mecanum;
 Emergency emergency;
+Hedgehog hedgehog(Serial, 115200);
 LED led(21, 1, NEO_GRB + NEO_KHZ800);
 BLE ble;
 Magnetometer mag;
@@ -200,13 +202,20 @@ void yawCompensatedTask(void *pvParameters) {
 
 void calibrateBeaconTask(void *pvParameters) {
     DEBUG_PRINTLN("Calibrating Beacon...");
-    mecanum.setTurn(0);
-    mecanum.setSpeed(20);
-    mecanum.setAngle(0);
-    mecanum.setState(1);
-    vTaskDelay(100);
+    float x1 = hedgehog.getX();
+    float y1 = hedgehog.getY();
+    mecanum.move(0,20,0);
+    vTaskDelay(500);
     DEBUG_PRINTLN("Beacon calibration complete.");
-    mecanum.setState(0);
+    mecanum.move(0,0,0);
+    float x2 = hedgehog.getX();
+    float y2 = hedgehog.getY();
+    float distance = sqrt(pow(x2 - x1, 2) + pow(y2 - y1, 2));
+    float angle = atan2(y2 - y1, x2 - x1) * 180 / PI;
+    if (angle < 0) {
+        angle += 360;
+    }
+    hedgehog.setAngle(angle);
     vTaskDelete(NULL);
 }
 
@@ -229,6 +238,7 @@ void setup(){
     emergency.begin();
     led.init();
     lidar.init();
+    hedgehog.init();
 
 
     //Magnetometer setup
