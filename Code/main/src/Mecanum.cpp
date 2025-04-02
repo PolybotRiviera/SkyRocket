@@ -34,7 +34,6 @@ void Mecanum::move(float angle, int speed, int turn){
     speed = map(speed, 0, 100, 0, 185);
     speed -= abs(turn);
     speed = constrain(speed, 0, 185);
-    //turn = map(turn, -100, 100, -255, 255);
 
     int v1 = speed * sin(rad + PI / 4) + turn;
     int v2 = speed * cos(rad + PI / 4) - turn;

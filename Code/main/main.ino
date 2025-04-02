@@ -195,27 +195,28 @@ void yawCompensatedTask(void *pvParameters) {
         float heading = mag.getHeading();
         float turn = mag.computePID(heading);
         mag.setCorrection(turn);
-        vTaskDelay(100);
+        vTaskDelay(50);
     }
     vTaskDelete(NULL);
 }
 
 void calibrateBeaconTask(void *pvParameters) {
     DEBUG_PRINTLN("Calibrating Beacon...");
+    float heading = mag.getHeading();
     float x1 = hedgehog.getX();
     float y1 = hedgehog.getY();
     mecanum.move(0,20,0);
     vTaskDelay(500);
-    DEBUG_PRINTLN("Beacon calibration complete.");
-    mecanum.move(0,0,0);
     float x2 = hedgehog.getX();
     float y2 = hedgehog.getY();
+    mecanum.move(0,0,0);
     float distance = sqrt(pow(x2 - x1, 2) + pow(y2 - y1, 2));
     float angle = atan2(y2 - y1, x2 - x1) * 180 / PI;
     if (angle < 0) {
         angle += 360;
     }
-    hedgehog.setAngle(angle);
+    hedgehog.setAngle(angle - mag.getHeading());
+    DEBUG_PRINTLN("Beacon calibration complete. Distance: " + String(distance) + ", Angle: " + String(angle-mag.getHeading()));
     vTaskDelete(NULL);
 }
 
@@ -223,6 +224,29 @@ void moveTask(void *pvParameters) {
     while (true) {
         mecanum.move(mecanum.getAngle(), mecanum.getSpeed() * mecanum.getState(), mecanum.getTurn() + mag.getCorrection());
         vTaskDelay(10);
+    }
+    vTaskDelete(NULL);
+}
+
+void goToTask(void *pvParameters) {
+
+    float targetX = hedgehog.getTargetX();
+    float targetY = hedgehog.getTargetY();
+    float distanceToTarget = sqrt(pow(targetX - hedgehog.getX(), 2) + pow(targetY - hedgehog.getY(), 2));
+    float threshold = hedgehog.getThreshold();
+
+    while (distanceToTarget > threshold) {
+        float heading = mag.getHeading();
+        float x = hedgehog.getX();
+        float y = hedgehog.getY();
+        float angleToTarget = atan2(targetY - y, targetX - x) * 180 / PI;
+        if (angleToTarget < 0) {
+            angleToTarget += 360;
+        }
+        distanceToTarget = sqrt(pow(targetX - x, 2) + pow(targetY - y, 2));
+        int speed = hedgehog.computePID(distanceToTarget);
+        mecanum.move(angleToTarget, speed, mecanum.getTurn() + mag.getCorrection());
+        vTaskDelay(20);
     }
     vTaskDelete(NULL);
 }
@@ -270,5 +294,6 @@ void loop(){
         xTaskCreatePinnedToCore(blinkTask, "BlinkTask", 2048, NULL, 1, &blinkTaskHandle, 1);
     }
 
+    vTaskDelay(10);
 
 }

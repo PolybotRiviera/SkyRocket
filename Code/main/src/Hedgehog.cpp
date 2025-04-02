@@ -220,3 +220,29 @@ void Hedgehog::setCrc16(byte* buf, byte size) {
     buf[size] = sum.b[0];
     buf[size + 1] = sum.b[1];  // Little endian
 }
+
+float Hedgehog::computePID(float distanceToTarget){
+    
+    unsigned long currentTime = millis();
+    float deltaTime = (currentTime - lastTime) / 1000.0;
+
+    if (lastTime == 0 || deltaTime <= 0) {
+        lastTime = currentTime;
+        lastDistanceToTarget = distanceToTarget;
+        integral = 0;
+        return kp * distanceToTarget;
+    }
+
+    const float maxIntegral = 125.0;
+    integral += distanceToTarget * deltaTime;
+    integral = constrain(integral, -maxIntegral, maxIntegral);
+
+    float derivative = (distanceToTarget - lastDistanceToTarget) / deltaTime;
+
+    float output = kp * distanceToTarget + ki * integral + kd * derivative;
+
+    lastDistanceToTarget = distanceToTarget;
+    lastTime = currentTime;
+    output = constrain(output, -125, 130); 
+    return output;
+}
