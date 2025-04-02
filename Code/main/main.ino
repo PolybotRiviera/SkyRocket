@@ -215,6 +215,7 @@ void setup(){
     mecanum.begin();
     emergency.begin();
     led.init();
+    lidar.init();
 
 
     //Magnetometer setup
@@ -227,26 +228,21 @@ void setup(){
     ble.init();
     ble.setCommandCallback(processCommand);
 
-    xTaskCreatePinnedToCore(blinkTask, "MyTask", 2048, NULL, 1, &blinkTaskHandle, 1);
+    xTaskCreatePinnedToCore(blinkTask, "BlinkTask", 2048, NULL, 1, &blinkTaskHandle, 1);
 
     if (moveTaskHandle != NULL) {
         vTaskDelete(moveTaskHandle);
         moveTaskHandle = NULL;
     }
-    //xTaskCreatePinnedToCore(moveTask, "MoveTask", 2048, NULL, 1, &moveTaskHandle, 1);
+    xTaskCreatePinnedToCore(moveTask, "MoveTask", 2048, NULL, 1, &moveTaskHandle, 1);
 }
 
 void loop(){
 
-    if (lidar.update()) {
-        USBSerial.println("Too close: " + String(lidar.tooClose()));
-    }
-    delay(50);
-
     if (blinkTaskHandle == NULL && !ble.isConnected()) {
         DEBUG_PRINTLN("Disconnected from BLE device.");
         emergency.stop();
-        xTaskCreatePinnedToCore(blinkTask, "MyTask", 2048, NULL, 1, &blinkTaskHandle, 1);
+        xTaskCreatePinnedToCore(blinkTask, "BlinkTask", 2048, NULL, 1, &blinkTaskHandle, 1);
     }
 
 
