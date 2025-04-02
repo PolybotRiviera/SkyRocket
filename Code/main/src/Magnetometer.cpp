@@ -102,30 +102,35 @@ void Magnetometer::setTargetHeading(float target) {
 }
 
 float Magnetometer::computePID(float currentHeading) {
-    unsigned long now = millis();
-    float dt = (now - lastTime) / 1000.0;
-    lastTime = now;
 
     float error = targetHeading - currentHeading;
 
-    if (error > 180) {
-        error -= 360;
-    } else if (error < -180) {
-        error += 360;
+    if (error > 180.0) {
+        error -= 360.0;
+    } else if (error < -180.0) {
+        error += 360.0;
     }
 
-    float pTerm = kp * error;
+    unsigned long currentTime = millis();
+    float deltaTime = (currentTime - lastTime) / 1000.0;
 
-    integral += error * dt;
-    float iTerm = ki * integral;
+    if (lastTime == 0 || deltaTime <= 0) {
+        lastTime = currentTime;
+        lastError = error;
+        integral = 0;
+        return kp * error;
+    }
 
-    float derivative = (error - lastError) / dt;
-    float dTerm = kd * derivative;
+    const float maxIntegral = 125.0;
+    integral += error * deltaTime;
+    integral = constrain(integral, -maxIntegral, maxIntegral);
 
-    float output = pTerm + iTerm + dTerm;
+    float derivative = (error - lastError) / deltaTime;
+
+    float output = kp * error + ki * integral + kd * derivative;
+
     lastError = error;
-
-    //output = constrain(output, -50, 50);
+    lastTime = currentTime;
 
     return output;
 }

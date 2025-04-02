@@ -26,10 +26,13 @@ private:
     float kp;  
     float ki;     
     float kd;   
-    float integral; 
-    float lastError;     
-    float targetHeading;  
+
+    float integral;
+    float lastError;
+    float targetHeading;
+
     unsigned long lastTime;
+    int sampleTime = 100; //ms
     float correction = 0;
 
 public:
@@ -47,6 +50,8 @@ public:
     float computePID(float currentHeading);
     void setCorrection(float correction) { this->correction = correction; }
     float getCorrection() { return correction; }
+    float getSampleTime() { return sampleTime; }
+    void setSampleTime(int sampleTime) { this->sampleTime = sampleTime; }
 };
 
 #endif
