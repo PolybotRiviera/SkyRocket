@@ -53,6 +53,8 @@ enum COMMAND : uint8_t {
     ACTIVATE,     // 0 bytes
     MAG_CALIBRATION, // 0 bytes
     YAW_COMPENSATED_TOGGLE, // 0 bytes
+    CALIBRATE_BEACON, // 0 bytes
+    GOTO, // 4 bytes: x, y (16 bit int each)
 };
 
 void processCommand(const uint8_t* data, size_t length) {
@@ -155,6 +157,25 @@ void processCommand(const uint8_t* data, size_t length) {
                 xTaskCreatePinnedToCore(yawCompensatedTask, "MoveYawCompensatedTask", 2048, NULL, 1, &yawCompensatedTaskHandle, 1);
             }
             break;
+
+        case CALIBRATE_BEACON:
+            if (calibrateBeaconTaskHandle == NULL) {
+                xTaskCreatePinnedToCore(calibrateBeaconTask, "CalibrateBeaconTask", 2048, NULL, 1, &calibrateBeaconTaskHandle, 1);
+            }
+            break;
+        
+        case GOTO:
+            if (length >= 5) {
+                int16_t x = (data[1] << 8) | data[2];
+                int16_t y = (data[3] << 8) | data[4];
+                hedgehog.setTargetX(x);
+                hedgehog.setTargetY(y);
+                if (moveTaskHandle != NULL) {
+                    vTaskDelete(moveTaskHandle);
+                    moveTaskHandle = NULL;
+                }
+                xTaskCreatePinnedToCore(goToTask, "GoToTask", 2048, NULL, 1, &moveTaskHandle, 1);
+            break;
             
         default:
             DEBUG_PRINTLN("Unknown command: " + String(cmd));
@@ -230,8 +251,8 @@ void moveTask(void *pvParameters) {
 
 void goToTask(void *pvParameters) {
 
-    float targetX = hedgehog.getTargetX();
-    float targetY = hedgehog.getTargetY();
+    int targetX = hedgehog.getTargetX();
+    int targetY = hedgehog.getTargetY();
     float distanceToTarget = sqrt(pow(targetX - hedgehog.getX(), 2) + pow(targetY - hedgehog.getY(), 2));
     float threshold = hedgehog.getThreshold();
 

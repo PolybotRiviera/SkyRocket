@@ -41,10 +41,10 @@ public:
     void setAngle(float newAngle) { angle = newAngle; }  // Set the angle for PID control
     float getAngle() const { return angle; }  // Get the current angle
 
-    void setTarget(float x, float y) { targetX = x; targetY = y; }  // Set target coordinates
+    void setTarget(int x, int y) { targetX = x; targetY = y; }  // Set target coordinates
     // Get target coordinates
-    float getTargetX() const { return targetX; }
-    float getTargetY() const { return targetY; }
+    int getTargetX() const { return targetX; }
+    int getTargetY() const { return targetY; }
 
     float computePID(float distanceToTarget);  // Compute PID correction based on distance to target
 
@@ -56,8 +56,8 @@ private:
     HardwareSerial& serial;  // Reference to Serial port
 
     float angle = 0;  // Current angle between the robot and the x and y axis of the beacons
-    float targetX = 0;  // Target X coordinate
-    float targetY = 0;  // Target Y coordinate
+    int targetX = 0;  // Target X coordinate
+    int targetY = 0;  // Target Y coordinate
 
     float threshold = 10;  // Threshold for distance to target
 
