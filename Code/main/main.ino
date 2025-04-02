@@ -18,6 +18,7 @@ _\ \   <| |_| / _  \ (_) | (__|   <  __/ |_
 #include "include/LED.hpp"
 #include "include/BLE.hpp"
 #include "include/Magnetometer.hpp"
+#include "include/lidar.hpp"
 #include "USB.h"
 
 #define DEBUG true
