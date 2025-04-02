@@ -1,0 +1,8 @@
+{
+    "cmake.sourceDirectory": "/workspaces/SkyRocket/Code/Qt",
+    "files.associations": {
+        "array": "cpp",
+        "string": "cpp",
+        "string_view": "cpp"
+    }
+}

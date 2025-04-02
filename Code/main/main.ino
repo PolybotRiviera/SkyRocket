@@ -29,6 +29,7 @@ Emergency emergency;
 LED led(21, 1, NEO_GRB + NEO_KHZ800);
 BLE ble;
 Magnetometer mag;
+Lidar lidar(SerialLidar, 18);
 
 TaskHandle_t blinkTaskHandle; 
 TaskHandle_t calibrateTaskHandle;
@@ -230,11 +231,15 @@ void setup(){
         vTaskDelete(moveTaskHandle);
         moveTaskHandle = NULL;
     }
-    xTaskCreatePinnedToCore(moveTask, "MoveTask", 2048, NULL, 1, &moveTaskHandle, 1);
+    //xTaskCreatePinnedToCore(moveTask, "MoveTask", 2048, NULL, 1, &moveTaskHandle, 1);
 }
 
 void loop(){
 
+    if (lidar.update()) {
+        USBSerial.println("Too close: " + String(lidar.tooClose()));
+    }
+    delay(50);
 
     if (blinkTaskHandle == NULL && !ble.isConnected()) {
         DEBUG_PRINTLN("Disconnected from BLE device.");
