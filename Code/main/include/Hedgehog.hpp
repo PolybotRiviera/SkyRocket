@@ -38,8 +38,24 @@ public:
     int16_t getGyroZ() const { return imu_gyro_z; }
     int64_t getRawTimestamp() const { return imu_raw_timestamp; }
 
+    void setAngle(float newAngle) { angle = newAngle; }  // Set the angle for PID control
+    float getAngle() const { return angle; }  // Get the current angle
+
+
 private:
     HardwareSerial& serial;  // Reference to Serial port
+
+    float angle = 0;  // Current angle between the robot and the x and y axis of the beacons
+
+    float kp;  // PID parameters
+    float ki;
+    float kd;
+    float integral;
+    float lastError;
+    float targetHeading;
+    unsigned long lastTime;
+    int sampleTime = 100;  // ms
+    float correction = 0;
 
     // Position data
     long hedgehog_x, hedgehog_y, hedgehog_z;

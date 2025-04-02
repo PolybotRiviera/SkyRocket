@@ -34,7 +34,8 @@ HardwareSerial SerialLidar(1);
 Lidar lidar(SerialLidar, 18);
 
 TaskHandle_t blinkTaskHandle; 
-TaskHandle_t calibrateTaskHandle;
+TaskHandle_t calibrateMagTaskHandle;
+TaskHandle_t calibrateBeaconTaskHandle;
 TaskHandle_t yawCompensatedTaskHandle;
 TaskHandle_t moveTaskHandle;
 
@@ -100,7 +101,7 @@ void processCommand(const uint8_t* data, size_t length) {
             break;
             
         case MOVING:
-            if (length >= 4 && calibrateTaskHandle == NULL) {
+            if (length >= 4 && calibrateMagTaskHandle == NULL) {
                 int16_t angle = (data[1] << 8) | data[2];
                 int8_t turnRate = static_cast<int8_t>(data[3]);
                 mecanum.setAngle(angle);
@@ -120,9 +121,9 @@ void processCommand(const uint8_t* data, size_t length) {
                 vTaskDelete(moveTaskHandle);
                 moveTaskHandle = NULL;
             }
-            if (calibrateTaskHandle != NULL) {
-                vTaskDelete(calibrateTaskHandle);
-                calibrateTaskHandle = NULL;
+            if (calibrateMagTaskHandle != NULL) {
+                vTaskDelete(calibrateMagTaskHandle);
+                calibrateMagTaskHandle = NULL;
             }
             emergency.stop();
             break;
@@ -137,8 +138,8 @@ void processCommand(const uint8_t* data, size_t length) {
             
         case MAG_CALIBRATION:
             mecanum.setState(0);
-            if (calibrateTaskHandle == NULL) {
-                xTaskCreatePinnedToCore(calibrateTask, "CalibrateTask", 2048, NULL, 1, &calibrateTaskHandle, 1);
+            if (calibrateMagTaskHandle == NULL) {
+                xTaskCreatePinnedToCore(calibrateMagTask, "calibrateMagTask", 2048, NULL, 1, &calibrateMagTaskHandle, 1);
             }
             break;
 
@@ -174,7 +175,7 @@ void blinkTask(void *pvParameters) {
     vTaskDelete(NULL);
 }
 
-void calibrateTask(void *pvParameters) {
+void calibrateMagTask(void *pvParameters) {
     DEBUG_PRINTLN("Calibrating Magnetometer...");
     mecanum.setTurn(-100);
     if (mag.calibrate()) {
@@ -183,7 +184,7 @@ void calibrateTask(void *pvParameters) {
         DEBUG_PRINTLN("Calibration failed.");
     }
     mecanum.setTurn(0);
-    calibrateTaskHandle = NULL;
+    calibrateMagTaskHandle = NULL;
     vTaskDelete(NULL);
 }
 
@@ -194,6 +195,18 @@ void yawCompensatedTask(void *pvParameters) {
         mag.setCorrection(turn);
         vTaskDelay(100);
     }
+    vTaskDelete(NULL);
+}
+
+void calibrateBeaconTask(void *pvParameters) {
+    DEBUG_PRINTLN("Calibrating Beacon...");
+    mecanum.setTurn(0);
+    mecanum.setSpeed(20);
+    mecanum.setAngle(0);
+    mecanum.setState(1);
+    vTaskDelay(100);
+    DEBUG_PRINTLN("Beacon calibration complete.");
+    mecanum.setState(0);
     vTaskDelete(NULL);
 }
 
@@ -228,13 +241,15 @@ void setup(){
     ble.init();
     ble.setCommandCallback(processCommand);
 
-    xTaskCreatePinnedToCore(blinkTask, "BlinkTask", 2048, NULL, 1, &blinkTaskHandle, 1);
+    //xTaskCreatePinnedToCore(blinkTask, "BlinkTask", 2048, NULL, 1, &blinkTaskHandle, 1);
 
     if (moveTaskHandle != NULL) {
         vTaskDelete(moveTaskHandle);
         moveTaskHandle = NULL;
     }
-    xTaskCreatePinnedToCore(moveTask, "MoveTask", 2048, NULL, 1, &moveTaskHandle, 1);
+    //xTaskCreatePinnedToCore(moveTask, "MoveTask", 2048, NULL, 1, &moveTaskHandle, 1);
+
+    xTaskCreatePinnedToCore(calibrateMagTask, "CalibrateMagTask", 2048, NULL, 1, &calibrateMagTaskHandle, 1);
 }
 
 void loop(){
