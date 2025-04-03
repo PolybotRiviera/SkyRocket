@@ -10,11 +10,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     ledControlWidget = new LEDControlWidget(nullptr, this);
     robotControlWidget = new RobotControlWidget(nullptr, this);
     magWidget = new MagnetometerWidget(nullptr, this);
+    beaconControlWidget = new BeaconControlWidget(nullptr, this);
 
     tabWidget->addTab(connectionWidget, "Connection");
     tabWidget->addTab(robotControlWidget, "Robot Control");
-    tabWidget->addTab(ledControlWidget, "LED Control");
     tabWidget->addTab(magWidget, "Magnetometer");
+    tabWidget->addTab(beaconControlWidget, "Beacon");
+    tabWidget->addTab(ledControlWidget, "LED Control");
 
     setCentralWidget(tabWidget);
 
@@ -23,9 +25,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     connect(connectionWidget, &ConnectionWidget::connected, this, &MainWindow::onConnected);
     connect(connectionWidget, &ConnectionWidget::disconnected, this, &MainWindow::onDisconnected);
 
-    tabWidget->setTabEnabled(tabWidget->indexOf(ledControlWidget), true);
-    tabWidget->setTabEnabled(tabWidget->indexOf(robotControlWidget), true);
-    tabWidget->setTabEnabled(tabWidget->indexOf(magWidget), true);
+    tabWidget->setTabEnabled(tabWidget->indexOf(ledControlWidget), false);
+    tabWidget->setTabEnabled(tabWidget->indexOf(robotControlWidget), false);
+    tabWidget->setTabEnabled(tabWidget->indexOf(magWidget), false);
+    tabWidget->setTabEnabled(tabWidget->indexOf(beaconControlWidget), false);
 
 
     setWindowTitle("SkyRocket");
@@ -47,10 +50,12 @@ void MainWindow::onConnected(QLowEnergyService *service)
     ledControlWidget->setService(service);
     robotControlWidget->setService(service);
     magWidget->setService(service);
+    beaconControlWidget->setService(service);
 
     tabWidget->setTabEnabled(tabWidget->indexOf(ledControlWidget), true);
     tabWidget->setTabEnabled(tabWidget->indexOf(robotControlWidget), true);
     tabWidget->setTabEnabled(tabWidget->indexOf(magWidget), true);
+    tabWidget->setTabEnabled(tabWidget->indexOf(beaconControlWidget), true);
 
     tabWidget->setTabEnabled(tabWidget->indexOf(connectionWidget), false);
 
@@ -65,6 +70,7 @@ void MainWindow::onDisconnected()
     tabWidget->setTabEnabled(tabWidget->indexOf(ledControlWidget), false);
     tabWidget->setTabEnabled(tabWidget->indexOf(robotControlWidget), false);
     tabWidget->setTabEnabled(tabWidget->indexOf(magWidget), false);
+    tabWidget->setTabEnabled(tabWidget->indexOf(beaconControlWidget), false);
 
     tabWidget->setTabEnabled(tabWidget->indexOf(connectionWidget), true);
     
