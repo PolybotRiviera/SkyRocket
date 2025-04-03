@@ -47,6 +47,11 @@ public:
     int getTargetY() const { return targetY; }
 
     float computePID(float distanceToTarget);  // Compute PID correction based on distance to target
+    float setPIDTunings(float newKp, float newKi, float newKd) {  // Set PID parameters
+        kp = newKp;
+        ki = newKi;
+        kd = newKd;
+    }
 
     float getThreshold() const { return threshold; }  // Get threshold for distance to target
     void setThreshold(float newThreshold) { threshold = newThreshold; }  // Set threshold for distance to target

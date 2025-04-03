@@ -55,6 +55,7 @@ enum COMMAND : uint8_t {
     YAW_COMPENSATED_TOGGLE, // 0 bytes
     CALIBRATE_BEACON, // 0 bytes
     GOTO, // 4 bytes: x, y (16 bit int each)
+    BEACON_PID, // 6 bytes: kp, ki, kd (int16_t each)
 };
 
 void processCommand(const uint8_t* data, size_t length) {
@@ -118,6 +119,18 @@ void processCommand(const uint8_t* data, size_t length) {
             mecanum.setTurn(0);
             mecanum.setAngle(0);
             mecanum.setState(0);
+            if (moveTaskHandle != NULL) {
+                vTaskDelete(moveTaskHandle);
+                moveTaskHandle = NULL;
+            }
+            if (calibrateMagTaskHandle != NULL) {
+                vTaskDelete(calibrateMagTaskHandle);
+                calibrateMagTaskHandle = NULL;
+            }
+            if (calibrateBeaconTaskHandle != NULL) {
+                vTaskDelete(calibrateBeaconTaskHandle);
+                calibrateBeaconTaskHandle = NULL;
+            }
             break;
             
         case EMERGENCY_STOP:
@@ -168,13 +181,23 @@ void processCommand(const uint8_t* data, size_t length) {
             if (length >= 5) {
                 int16_t x = (data[1] << 8) | data[2];
                 int16_t y = (data[3] << 8) | data[4];
-                hedgehog.setTargetX(x);
-                hedgehog.setTargetY(y);
+                hedgehog.setTarget(x, y);
                 if (moveTaskHandle != NULL) {
                     vTaskDelete(moveTaskHandle);
                     moveTaskHandle = NULL;
                 }
                 xTaskCreatePinnedToCore(goToTask, "GoToTask", 2048, NULL, 1, &moveTaskHandle, 1);
+            }
+            break;
+
+        case BEACON_PID:
+            if (length >= 7) {
+                int16_t kp = (data[1] << 8) | data[2];
+                int16_t ki = (data[3] << 8) | data[4];
+                int16_t kd = (data[5] << 8) | data[6];
+                hedgehog.setPIDTunings(kp / 1000.0, ki / 1000.0, kd / 1000.0);
+                DEBUG_PRINTLN("Beacon PID set: " + String(kp / 1000.0) + ", " + String(ki / 1000.0) + ", " + String(kd / 1000.0));
+            }
             break;
             
         default:
@@ -216,7 +239,7 @@ void yawCompensatedTask(void *pvParameters) {
         float heading = mag.getHeading();
         float turn = mag.computePID(heading);
         mag.setCorrection(turn);
-        vTaskDelay(50);
+        vTaskDelay(10);
     }
     vTaskDelete(NULL);
 }
@@ -251,12 +274,16 @@ void moveTask(void *pvParameters) {
 
 void goToTask(void *pvParameters) {
 
+    hedgehog.update();
     int targetX = hedgehog.getTargetX();
     int targetY = hedgehog.getTargetY();
+    targetX = 1000;
+    targetY = 1000;
     float distanceToTarget = sqrt(pow(targetX - hedgehog.getX(), 2) + pow(targetY - hedgehog.getY(), 2));
     float threshold = hedgehog.getThreshold();
 
     while (distanceToTarget > threshold) {
+        hedgehog.update();
         float heading = mag.getHeading();
         float x = hedgehog.getX();
         float y = hedgehog.getY();
@@ -267,7 +294,7 @@ void goToTask(void *pvParameters) {
         distanceToTarget = sqrt(pow(targetX - x, 2) + pow(targetY - y, 2));
         int speed = hedgehog.computePID(distanceToTarget);
         mecanum.move(angleToTarget, speed, mecanum.getTurn() + mag.getCorrection());
-        vTaskDelay(20);
+        vTaskDelay(10);
     }
     vTaskDelete(NULL);
 }
@@ -302,19 +329,19 @@ void setup(){
         vTaskDelete(moveTaskHandle);
         moveTaskHandle = NULL;
     }
-    //xTaskCreatePinnedToCore(moveTask, "MoveTask", 2048, NULL, 1, &moveTaskHandle, 1);
 
-    xTaskCreatePinnedToCore(calibrateMagTask, "CalibrateMagTask", 2048, NULL, 1, &calibrateMagTaskHandle, 1);
+    //xTaskCreatePinnedToCore(moveTask, "MoveTask", 2048, NULL, 1, &moveTaskHandle, 1);
+    //xTaskCreatePinnedToCore(goToTask, "MoveTask", 2048, NULL, 1, &moveTaskHandle, 1);
+    //xTaskCreatePinnedToCore(calibrateBeaconTask, "calibrateBeaconTask", 2048, NULL, 1, &calibrateBeaconTaskHandle, 1);
 }
 
 void loop(){
-
+    
     if (blinkTaskHandle == NULL && !ble.isConnected()) {
         DEBUG_PRINTLN("Disconnected from BLE device.");
         emergency.stop();
         xTaskCreatePinnedToCore(blinkTask, "BlinkTask", 2048, NULL, 1, &blinkTaskHandle, 1);
     }
-
     vTaskDelay(10);
 
 }
