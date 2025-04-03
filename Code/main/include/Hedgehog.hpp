@@ -47,7 +47,7 @@ public:
     int getTargetY() const { return targetY; }
 
     float computePID(float distanceToTarget);  // Compute PID correction based on distance to target
-    float setPIDTunings(float newKp, float newKi, float newKd) {  // Set PID parameters
+    void setPIDTunings(float newKp, float newKi, float newKd) {  // Set PID parameters
         kp = newKp;
         ki = newKi;
         kd = newKd;

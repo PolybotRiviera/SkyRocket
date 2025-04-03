@@ -196,7 +196,6 @@ void processCommand(const uint8_t* data, size_t length) {
                 int16_t ki = (data[3] << 8) | data[4];
                 int16_t kd = (data[5] << 8) | data[6];
                 hedgehog.setPIDTunings(kp / 1000.0, ki / 1000.0, kd / 1000.0);
-                DEBUG_PRINTLN("Beacon PID set: " + String(kp / 1000.0) + ", " + String(ki / 1000.0) + ", " + String(kd / 1000.0));
             }
             break;
             
@@ -249,8 +248,8 @@ void calibrateBeaconTask(void *pvParameters) {
     float heading = mag.getHeading();
     float x1 = hedgehog.getX();
     float y1 = hedgehog.getY();
-    mecanum.move(0,20,0);
-    vTaskDelay(500);
+    mecanum.move(0,30,0);
+    vTaskDelay(2000);
     float x2 = hedgehog.getX();
     float y2 = hedgehog.getY();
     mecanum.move(0,0,0);
