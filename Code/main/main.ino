@@ -206,7 +206,7 @@ void processCommand(const uint8_t* data, size_t length) {
     
     DEBUG_PRINTLN("Command executed: " + String(cmd) + " (length: " + String(length) + ")");
 }
-
+ 
 void blinkTask(void *pvParameters) {
     while (!ble.isConnected()) {
         led.setBrightness(50);
