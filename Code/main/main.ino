@@ -39,6 +39,7 @@ TaskHandle_t blinkTaskHandle;
 TaskHandle_t calibrateMagTaskHandle;
 TaskHandle_t calibrateBeaconTaskHandle;
 TaskHandle_t yawCompensatedTaskHandle;
+TaskHandle_t goToTaskHandle;
 TaskHandle_t moveTaskHandle;
 
 enum COMMAND : uint8_t {
@@ -119,6 +120,21 @@ void processCommand(const uint8_t* data, size_t length) {
             mecanum.setTurn(0);
             mecanum.setAngle(0);
             mecanum.setState(0);
+            if (calibrateMagTaskHandle != NULL) {
+                vTaskDelete(calibrateMagTaskHandle);
+                calibrateMagTaskHandle = NULL;
+            }
+            if (calibrateBeaconTaskHandle != NULL) {
+                vTaskDelete(calibrateBeaconTaskHandle);
+                calibrateBeaconTaskHandle = NULL;
+            }
+            break;
+            
+        case EMERGENCY_STOP:
+            mecanum.setTurn(0);
+            mecanum.setAngle(0);
+            mecanum.setState(0);
+            mecanum.move(0, 0, 0);
             if (moveTaskHandle != NULL) {
                 vTaskDelete(moveTaskHandle);
                 moveTaskHandle = NULL;
@@ -131,30 +147,23 @@ void processCommand(const uint8_t* data, size_t length) {
                 vTaskDelete(calibrateBeaconTaskHandle);
                 calibrateBeaconTaskHandle = NULL;
             }
-            break;
-            
-        case EMERGENCY_STOP:
-            if (moveTaskHandle != NULL) {
-                vTaskDelete(moveTaskHandle);
-                moveTaskHandle = NULL;
-            }
-            if (calibrateMagTaskHandle != NULL) {
-                vTaskDelete(calibrateMagTaskHandle);
-                calibrateMagTaskHandle = NULL;
-            }
             emergency.stop();
             break;
             
         case ACTIVATE:
 
             if (moveTaskHandle == NULL) {
+                mecanum.setTurn(0);
+                mecanum.setAngle(0);
+                mecanum.setState(0);
+                mecanum.move(0, 0, 0);
                 xTaskCreatePinnedToCore(moveTask, "MoveTask", 2048, NULL, 1, &moveTaskHandle, 1);
             }
             emergency.activate();
             break;
             
         case MAG_CALIBRATION:
-            mecanum.setState(0);
+            mecanum.setTurn(0);
             if (calibrateMagTaskHandle == NULL) {
                 xTaskCreatePinnedToCore(calibrateMagTask, "calibrateMagTask", 2048, NULL, 1, &calibrateMagTaskHandle, 1);
             }
@@ -179,14 +188,18 @@ void processCommand(const uint8_t* data, size_t length) {
         
         case GOTO:
             if (length >= 5) {
-                int16_t x = (data[1] << 8) | data[2];
-                int16_t y = (data[3] << 8) | data[4];
-                hedgehog.setTarget(x, y);
-                if (moveTaskHandle != NULL) {
-                    vTaskDelete(moveTaskHandle);
-                    moveTaskHandle = NULL;
+
+                if (goToTaskHandle != NULL) {
+                    vTaskDelete(goToTaskHandle);
+                    goToTaskHandle = NULL;
                 }
-                xTaskCreatePinnedToCore(goToTask, "GoToTask", 2048, NULL, 1, &moveTaskHandle, 1);
+                else {
+                    int16_t x = (data[1] << 8) | data[2];
+                    int16_t y = (data[3] << 8) | data[4];
+                    hedgehog.setTarget(x, y);
+                    xTaskCreatePinnedToCore(goToTask, "GoToTask", 2048, NULL, 1, &goToTaskHandle, 1);
+                }
+
             }
             break;
 
@@ -222,7 +235,7 @@ void blinkTask(void *pvParameters) {
 
 void calibrateMagTask(void *pvParameters) {
     DEBUG_PRINTLN("Calibrating Magnetometer...");
-    mecanum.setTurn(-100);
+    mecanum.setTurn(-50);
     if (mag.calibrate()) {
         DEBUG_PRINTLN("Calibration successful.");
     } else {
@@ -238,7 +251,7 @@ void yawCompensatedTask(void *pvParameters) {
         float heading = mag.getHeading();
         float turn = mag.computePID(heading);
         mag.setCorrection(turn);
-        vTaskDelay(10);
+        vTaskDelay(50);
     }
     vTaskDelete(NULL);
 }
@@ -248,18 +261,23 @@ void calibrateBeaconTask(void *pvParameters) {
     float heading = mag.getHeading();
     float x1 = hedgehog.getX();
     float y1 = hedgehog.getY();
-    mecanum.move(0,30,0);
-    vTaskDelay(2000);
+    DEBUG_PRINTLN("Initial position: X: " + String(x1) + ", Y: " + String(y1) + ", Heading: " + String(heading));
+    mecanum.setSpeed(20);
+    mecanum.setState(1);
+    vTaskDelay(3000);
     float x2 = hedgehog.getX();
     float y2 = hedgehog.getY();
-    mecanum.move(0,0,0);
+    DEBUG_PRINTLN("Final position: X: " + String(x2) + ", Y: " + String(y2) + ", Heading: " + String(mag.getHeading()));
+    mecanum.setSpeed(20);
+    mecanum.setState(0);
     float distance = sqrt(pow(x2 - x1, 2) + pow(y2 - y1, 2));
     float angle = atan2(y2 - y1, x2 - x1) * 180 / PI;
     if (angle < 0) {
         angle += 360;
     }
-    hedgehog.setAngle(angle - mag.getHeading());
-    DEBUG_PRINTLN("Beacon calibration complete. Distance: " + String(distance) + ", Angle: " + String(angle-mag.getHeading()));
+    hedgehog.setAngle(angle);
+    DEBUG_PRINTLN("Beacon calibration complete. Distance: " + String(distance) + ", Angle: " + String(angle)+ ", Heading: " + String(mag.getHeading()));
+    calibrateBeaconTaskHandle = NULL;
     vTaskDelete(NULL);
 }
 
@@ -273,28 +291,29 @@ void moveTask(void *pvParameters) {
 
 void goToTask(void *pvParameters) {
 
-    hedgehog.update();
     int targetX = hedgehog.getTargetX();
     int targetY = hedgehog.getTargetY();
-    targetX = 1000;
-    targetY = 1000;
     float distanceToTarget = sqrt(pow(targetX - hedgehog.getX(), 2) + pow(targetY - hedgehog.getY(), 2));
     float threshold = hedgehog.getThreshold();
+    float offset = hedgehog.getAngle();
+    mecanum.setState(1);
 
     while (distanceToTarget > threshold) {
-        hedgehog.update();
-        float heading = mag.getHeading();
         float x = hedgehog.getX();
         float y = hedgehog.getY();
         float angleToTarget = atan2(targetY - y, targetX - x) * 180 / PI;
+        angleToTarget = offset - angleToTarget;
         if (angleToTarget < 0) {
             angleToTarget += 360;
         }
         distanceToTarget = sqrt(pow(targetX - x, 2) + pow(targetY - y, 2));
         int speed = hedgehog.computePID(distanceToTarget);
-        mecanum.move(angleToTarget, speed, mecanum.getTurn() + mag.getCorrection());
-        vTaskDelay(10);
+        mecanum.setAngle(angleToTarget);
+        mecanum.setSpeed(speed);
+        //DEBUG_PRINTLN("Distance to target: " + String(distanceToTarget) + ", Angle to target: " + String(angleToTarget) + ", Speed: " + String(speed));
+        vTaskDelay(50);
     }
+    mecanum.setState(0);
     vTaskDelete(NULL);
 }
 
@@ -315,32 +334,28 @@ void setup(){
     //Magnetometer setup
     mag.begin(Wire);
     mag.initialize();        
-    mag.setPIDTunings(3.0, 0, 0); // kp, ki, kd
+    mag.setPIDTunings(1.0, 0, 0); // kp, ki, kd
     mag.setTargetHeading(90);
 
     // BLE setup
     ble.init();
     ble.setCommandCallback(processCommand);
 
-    //xTaskCreatePinnedToCore(blinkTask, "BlinkTask", 2048, NULL, 1, &blinkTaskHandle, 1);
-
     if (moveTaskHandle != NULL) {
         vTaskDelete(moveTaskHandle);
         moveTaskHandle = NULL;
     }
 
-    //xTaskCreatePinnedToCore(moveTask, "MoveTask", 2048, NULL, 1, &moveTaskHandle, 1);
-    //xTaskCreatePinnedToCore(goToTask, "MoveTask", 2048, NULL, 1, &moveTaskHandle, 1);
-    //xTaskCreatePinnedToCore(calibrateBeaconTask, "calibrateBeaconTask", 2048, NULL, 1, &calibrateBeaconTaskHandle, 1);
+    xTaskCreatePinnedToCore(moveTask, "MoveTask", 2048, NULL, 1, &moveTaskHandle, 1);
 }
 
 void loop(){
-    
+
+    hedgehog.update();
     if (blinkTaskHandle == NULL && !ble.isConnected()) {
         DEBUG_PRINTLN("Disconnected from BLE device.");
         emergency.stop();
         xTaskCreatePinnedToCore(blinkTask, "BlinkTask", 2048, NULL, 1, &blinkTaskHandle, 1);
     }
     vTaskDelay(10);
-
 }
