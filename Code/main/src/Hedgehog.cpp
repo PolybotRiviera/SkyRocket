@@ -222,8 +222,6 @@ void Hedgehog::setCrc16(byte* buf, byte size) {
 }
 
 float Hedgehog::computePID(float distanceToTarget){
-
-    distanceToTarget = distanceToTarget / 10;
     
     unsigned long currentTime = millis();
     float deltaTime = (currentTime - lastTime) / 1000.0;
@@ -235,7 +233,7 @@ float Hedgehog::computePID(float distanceToTarget){
         return kp * distanceToTarget;
     }
 
-    const float maxIntegral = 125.0;
+    const float maxIntegral = 50.0;
     integral += distanceToTarget * deltaTime;
     integral = constrain(integral, -maxIntegral, maxIntegral);
 
@@ -245,6 +243,6 @@ float Hedgehog::computePID(float distanceToTarget){
 
     lastDistanceToTarget = distanceToTarget;
     lastTime = currentTime;
-    output = constrain(output, 0, 50); 
+    output = constrain(output, 0, 60); 
     return output;
 }

@@ -66,7 +66,7 @@ private:
 
     float threshold = 10;  // Threshold for distance to target
 
-    float kp = 1;  // PID parameters
+    float kp = 0.4;  // PID parameters
     float ki = 0;
     float kd = 0;
     float integral = 0;

@@ -121,7 +121,7 @@ float Magnetometer::computePID(float currentHeading) {
         return kp * error;
     }
 
-    const float maxIntegral = 125.0;
+    const float maxIntegral = 100.0;
     integral += error * deltaTime;
     integral = constrain(integral, -maxIntegral, maxIntegral);
 
@@ -131,6 +131,6 @@ float Magnetometer::computePID(float currentHeading) {
 
     lastError = error;
     lastTime = currentTime;
-
+    output = constrain(output, -100.0, 100.0);
     return output;
 }

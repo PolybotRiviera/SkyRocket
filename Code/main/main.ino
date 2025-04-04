@@ -264,7 +264,7 @@ void yawCompensatedTask(void *pvParameters) {
         float heading = mag.getHeading();
         float turn = mag.computePID(heading);
         mag.setCorrection(turn);
-        vTaskDelay(6);
+        vTaskDelay(50);
     }
     vTaskDelete(NULL);
 }
@@ -322,7 +322,7 @@ void goToTask(void *pvParameters) {
         int speed = hedgehog.computePID(distanceToTarget);
         mecanum.setAngle(angleToTarget);
         mecanum.setSpeed(speed);
-        vTaskDelay(10);
+        vTaskDelay(50);
     }
     mecanum.setState(0);
     vTaskDelete(NULL);
@@ -345,7 +345,7 @@ void setup(){
     //Magnetometer setup
     mag.begin(Wire);
     mag.initialize();        
-    mag.setPIDTunings(1.0, 0, 0); // kp, ki, kd
+    mag.setPIDTunings(1.0, 0.2, 0); // kp, ki, kd
     mag.setTargetHeading(90);
 
     // BLE setup
