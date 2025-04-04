@@ -245,6 +245,6 @@ float Hedgehog::computePID(float distanceToTarget){
 
     lastDistanceToTarget = distanceToTarget;
     lastTime = currentTime;
-    output = constrain(output, 0, 100); 
+    output = constrain(output, 0, 50); 
     return output;
 }
