@@ -352,11 +352,6 @@ void setup(){
     ble.init();
     ble.setCommandCallback(processCommand);
 
-    if (moveTaskHandle != NULL) {
-        vTaskDelete(moveTaskHandle);
-        moveTaskHandle = NULL;
-    }
-
     xTaskCreatePinnedToCore(moveTask, "MoveTask", 2048, NULL, 1, &moveTaskHandle, 1);
 }
 
