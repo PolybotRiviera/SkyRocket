@@ -22,7 +22,7 @@ _\ \   <| |_| / _  \ (_) | (__|   <  __/ |_
 #include "include/Hedgehog.hpp"
 #include "USB.h"
 
-#define DEBUG true
+#define DEBUG false
 #define DEBUG_PRINTLN(x) if (DEBUG) USBSerial.println(x)
 
 USBCDC USBSerial;
@@ -58,6 +58,34 @@ enum COMMAND : uint8_t {
     GOTO, // 4 bytes: x, y (16 bit int each)
     BEACON_PID, // 6 bytes: kp, ki, kd (int16_t each)
 };
+
+void emergencyStop(){
+    mecanum.setTurn(0);
+    mecanum.setAngle(0);
+    mecanum.setState(0);
+    mecanum.move(0, 0, 0);
+    emergency.stop();
+    if (moveTaskHandle != NULL) {
+        vTaskDelete(moveTaskHandle);
+        moveTaskHandle = NULL;
+    }
+    if (calibrateMagTaskHandle != NULL) {
+        vTaskDelete(calibrateMagTaskHandle);
+        calibrateMagTaskHandle = NULL;
+    }
+    if (calibrateBeaconTaskHandle != NULL) {
+        vTaskDelete(calibrateBeaconTaskHandle);
+        calibrateBeaconTaskHandle = NULL;
+    }
+    if (goToTaskHandle != NULL) {
+        vTaskDelete(goToTaskHandle);
+        goToTaskHandle = NULL;
+    }
+    if (yawCompensatedTaskHandle != NULL) {
+        vTaskDelete(yawCompensatedTaskHandle);
+        yawCompensatedTaskHandle = NULL;
+    }
+}
 
 void processCommand(const uint8_t* data, size_t length) {
     if (length < 1) return;  // Need at least command byte
@@ -131,23 +159,7 @@ void processCommand(const uint8_t* data, size_t length) {
             break;
             
         case EMERGENCY_STOP:
-            mecanum.setTurn(0);
-            mecanum.setAngle(0);
-            mecanum.setState(0);
-            mecanum.move(0, 0, 0);
-            if (moveTaskHandle != NULL) {
-                vTaskDelete(moveTaskHandle);
-                moveTaskHandle = NULL;
-            }
-            if (calibrateMagTaskHandle != NULL) {
-                vTaskDelete(calibrateMagTaskHandle);
-                calibrateMagTaskHandle = NULL;
-            }
-            if (calibrateBeaconTaskHandle != NULL) {
-                vTaskDelete(calibrateBeaconTaskHandle);
-                calibrateBeaconTaskHandle = NULL;
-            }
-            emergency.stop();
+            emergencyStop();
             break;
             
         case ACTIVATE:
@@ -353,7 +365,7 @@ void loop(){
     hedgehog.update();
     if (blinkTaskHandle == NULL && !ble.isConnected()) {
         DEBUG_PRINTLN("Disconnected from BLE device.");
-        emergency.stop();
+        emergencyStop();
         xTaskCreatePinnedToCore(blinkTask, "BlinkTask", 2048, NULL, 1, &blinkTaskHandle, 1);
     }
     vTaskDelay(10);
