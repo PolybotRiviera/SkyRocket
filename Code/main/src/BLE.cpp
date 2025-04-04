@@ -43,7 +43,13 @@ void BLE::init() {
 
     BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
     pAdvertising->addServiceUUID("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
-    pAdvertising->setScanResponse(true);
+    
+    // Optimize advertising interval (20ms min, 40ms max)
+    pAdvertising->setMinPreferred(0x20); // 32 * 0.625ms = 20ms
+    pAdvertising->setMaxPreferred(0x40); // 64 * 0.625ms = 40ms
+    
+    pAdvertising->setScanResponse(false);
+    
     pAdvertising->start();
 }
 
@@ -61,7 +67,8 @@ void BLE::MyServerCallbacks::onDisconnect(BLEServer* pServer) {
 }
 
 void BLE::MyCharacteristicCallbacks::onWrite(BLECharacteristic* pCharacteristic) {
-    if (ble_->isConnected_ && ble_->commandCallback_) {
+    
+    if (ble_->commandCallback_) {
         uint8_t* data = pCharacteristic->getData();
         size_t length = pCharacteristic->getLength();
         ble_->commandCallback_(data, length);
