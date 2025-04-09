@@ -1,14 +1,14 @@
-Microcontroller : ESP32-WROOM-S3
+- Microcontroller : ESP32-WROOM-S3
 
-Buck : V_batt (11V) to 5V
+- Buck : V_batt (11V) to 5V
 
-LDO : 5V to 3V3
+- LDO : 5V to 3V3
 
-Magnetometer directly integrated on the PCB and communicates with the ESP32 through I2C
+- Magnetometer directly integrated on the PCB and communicates with the ESP32 through I2C
 
-Hedgehog (beacon) and Lidar communicate with the ESP32 through UART
+- Hedgehog (beacon) and Lidar communicate with the ESP32 through UART
 
-The microcontroller can also modify the speed and the direction of each motor
+- The microcontroller can also modify the speed and the direction of each motor
 
 
 ![IMG_20250409_090803](https://github.com/Templatew/SkyRocket/blob/main/PCB/SkyRocket_PCB/IMG_20250409_090803.jpg)
