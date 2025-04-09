@@ -1,6 +1,6 @@
 Microcontroller : ESP32-WROOM-S3
 
-Buck : V_batt = 11V to 5V
+Buck : V_batt (11V) to 5V
 
 LDO : 5V to 3V3
 
