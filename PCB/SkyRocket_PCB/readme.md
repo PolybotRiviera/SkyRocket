@@ -1,3 +1,5 @@
+*3 pictures : A picture of the PCB, a screenshot of the Schematic and a screenshot of the Layout*
+
 - Microcontroller : ESP32-WROOM-S3
 
 - Buck : V_batt (11V) to 5V
