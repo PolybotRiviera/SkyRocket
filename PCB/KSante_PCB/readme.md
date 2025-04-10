@@ -1,3 +1,5 @@
+*3 pictures : A picture of the PCB, a screenshot of the Schematic and a screenshot of the Layout*
+
 A Mosfet is present to allow our control PCB to enable or not the motors
 
 Otherwise, the purpose of this PCB is to redistribute the battery power to the 4 motors and to the control PCB
