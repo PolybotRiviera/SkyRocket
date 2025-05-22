@@ -1,0 +1,5 @@
+Code/build-Qt-Desktop-Debug/
+Code/build-Qt-Desktop_Qt_6_7_0_GCC_64bit-Debug/
+.vscode/
+build/
+.pio/
