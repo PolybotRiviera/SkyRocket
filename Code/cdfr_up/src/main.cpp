@@ -372,7 +372,5 @@ void initInnerOuter()
     servoInner.write(curInner);
     servoOuter.write(curOuter);
     delay(200);
-    
-
   }
 }
