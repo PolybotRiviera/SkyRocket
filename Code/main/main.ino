@@ -43,10 +43,10 @@ TaskHandle_t goToTaskHandle;
 TaskHandle_t moveTaskHandle;
 
 enum COMMAND : uint8_t {
-    BRIGHTNESS = 0,      // 1 byte: brightness (0-100)
-    COLOR_RGB,          // 3 bytes: r, g, b (0-255 each)
-    HEADING,           // 2 bytes: heading (int16_t)
-    MAG_PID,          // 6 bytes: kp, ki, kd (int16_t each)
+    BRIGHTNESS = 0,       // 1 byte: brightness (0-100)
+    COLOR_RGB,           // 3 bytes: r, g, b (0-255 each)
+    HEADING,            // 2 bytes: heading (int16_t)
+    MAG_PID,           // 6 bytes: kp, ki, kd (int16_t each)
     SPEED,            // 2 bytes: speed (int16_t)
     MOVING,          // 3 bytes: angle (int16_t)
     STOP,           // 0 bytes

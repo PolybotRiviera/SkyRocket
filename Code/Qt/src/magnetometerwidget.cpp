@@ -1,4 +1,4 @@
-#include "MagnetometerWidget.hpp"
+#include "../include/magnetometerwidget.hpp"
 #include <QVBoxLayout>
 #include <QFormLayout>
 #include <QHBoxLayout>

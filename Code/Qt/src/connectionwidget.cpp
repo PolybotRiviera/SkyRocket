@@ -204,6 +204,9 @@ void ConnectionWidget::errorOccurred(QLowEnergyController::Error error)
         handleDisconnection();
     } else {
         statusLabel->setText("Connection failed: " + QString::number(error));
+        qDebug() << "bello" << error;
+        qDebug() << "bello";
+
         QMessageBox::critical(this, "Error", "Connection error: " + QString::number(error));
         if (service) {
             delete service;
