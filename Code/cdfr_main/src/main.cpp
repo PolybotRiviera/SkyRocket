@@ -13,13 +13,13 @@ _\ \   <| |_| / _  \ (_) | (__|   <  __/ |_
 #include <Arduino.h>
 #include <unordered_map>
 #include <Wire.h>
-#include "include/Mecanum.hpp"
-#include "include/Emergency.hpp"
-#include "include/LED.hpp"
-#include "include/BLE.hpp"
-#include "include/Magnetometer.hpp"
-#include "include/lidar.hpp"
-#include "include/Hedgehog.hpp"
+#include "../include/Mecanum.hpp"
+#include "../include/Emergency.hpp"
+#include "../include/LED.hpp"
+#include "../include/BLE.hpp"
+#include "../include/Magnetometer.hpp"
+#include "../include/lidar.hpp"
+#include "../include/Hedgehog.hpp"
 #include "USB.h"
 
 #define DEBUG true
@@ -40,6 +40,12 @@ TaskHandle_t calibrateMagTaskHandle;
 TaskHandle_t calibrateBeaconTaskHandle;
 TaskHandle_t yawCompensatedTaskHandle;
 TaskHandle_t moveTaskHandle;
+
+void blinkTask(void *pvParameters);
+void calibrateMagTask(void *pvParameters);
+void yawCompensatedTask(void *pvParameters);
+void calibrateBeaconTask(void *pvParameters);
+void moveTask(void *pvParameters);
 
 enum COMMAND : uint8_t {
     BRIGHTNESS = 0,       // 1 byte: brightness (0-100)
